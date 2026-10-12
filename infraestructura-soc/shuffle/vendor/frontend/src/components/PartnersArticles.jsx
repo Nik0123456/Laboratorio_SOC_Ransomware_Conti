@@ -1,0 +1,22 @@
+import { Box, Typography } from '@mui/material'
+import React from 'react'
+
+const PartnersArticles = (props) => {
+  const {tabName = "Partner's Articles"} = props;
+  return (
+    <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "100%",
+      height: "100%",
+      minHeight: "500px",
+    }}
+    >
+      <Typography>{tabName}</Typography>
+    </Box>
+  )
+}
+
+export default PartnersArticles
