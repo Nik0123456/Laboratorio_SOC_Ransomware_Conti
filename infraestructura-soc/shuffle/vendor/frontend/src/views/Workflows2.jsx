@@ -1,0 +1,6603 @@
+// React & Core imports
+import React, { useEffect, useContext, memo, useState, useRef } from "react";
+import { useLocation, useNavigate, Link } from "react-router-dom";
+import ReactDOM from "react-dom"
+import { getTheme } from "../theme.jsx";
+
+// Material UI & Components
+import { makeStyles } from "@mui/styles";
+import { Navigate } from "react-router-dom";
+import { isMobile } from "react-device-detect"
+import ReactGA from 'react-ga4';
+
+import LineChartWrapper from "../components/LineChartWrapper.jsx";
+import SecurityFramework from '../components/SecurityFramework.jsx';
+import EditWorkflow from "../components/EditWorkflow.jsx"
+import Priority from "../components/Priority.jsx";
+import { Context } from "../context/ContextApi.jsx";
+
+// Material UI Components
+import {
+    Tab,
+    InputAdornment,
+    Tabs,
+    Box,
+    ButtonBase,
+    Badge,
+    Divider,
+    Avatar,
+    Drawer,
+    Grid,
+    InputLabel,
+    Select,
+    ListSubheader,
+    Paper,
+    Tooltip,
+    Button,
+    TextField,
+    FormControl,
+    FormControlLabel,
+    Switch,
+    IconButton,
+    Menu,
+    MenuItem,
+    Chip,
+    Typography,
+    CircularProgress,
+    Dialog,
+    DialogTitle,
+    DialogActions,
+    DialogContent,
+    Checkbox,
+    LinearProgress,
+    ListItemText,
+    AvatarGroup,
+    Zoom,
+    Collapse,
+    Skeleton,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+} from "@mui/material";
+
+// Material UI Icons
+import {
+  	ContentCopy as ContentCopyIcon,
+    Close as CloseIcon,
+    Compare as CompareIcon,
+    Maximize as MaximizeIcon,
+    Minimize as MinimizeIcon,
+    AddCircle as AddCircleIcon,
+    Toc as TocIcon,
+    Send as SendIcon,
+    Search as SearchIcon,
+    FileCopy as FileCopyIcon,
+    Delete as DeleteIcon,
+    BubbleChart as BubbleChartIcon,
+    Restore as RestoreIcon,
+    Cached as CachedIcon,
+    Apps as AppsIcon,
+    Edit as EditIcon,
+    MoreVert as MoreVertIcon,
+    PlayArrow as PlayArrowIcon,
+    Add as AddIcon,
+    CloudUpload as CloudUploadIcon,
+    CloudDownload as CloudDownloadIcon,
+    ExpandLess as ExpandLessIcon,
+    ExpandMore as ExpandMoreIcon,
+    Done as DoneIcon,
+    CheckCircle as CheckCircleIcon,
+    RadioButtonUnchecked as RadioButtonUncheckedIcon,
+    ArrowLeft as ArrowLeftIcon,
+    ArrowRight as ArrowRightIcon,
+    Visibility as VisibilityIcon,
+    EditNote as EditNoteIcon,
+	ErrorOutline as ErrorOutlineIcon,
+	Coronavirus as CoronavirusIcon, 
+	Fingerprint as FingerprintIcon,
+	Psychology as PsychologyIcon,
+	Wifi as WifiIcon,
+	Devices as DevicesIcon,
+	AutoAwesome as AutoAwesomeIcon,
+	BarChart as BarChartIcon,
+	Lock as LockIcon,
+	Clear as ClearIcon,
+	QueryStats as QueryStatsIcon,
+	GridOn as GridOnIcon,
+	List as ListIcon,
+	Publish as PublishIcon,
+	GetApp as GetAppIcon,
+	Image as ImageIcon,
+	Shield as ShieldIcon,
+	Warning as WarningIcon,
+	ChevronRight as ChevronRightIcon,
+} from "@mui/icons-material";
+
+// Additional Components
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import Dropzone from "../components/Dropzone.jsx";
+
+// Third Party Libraries
+import { ToastContainer, toast } from "react-toastify"
+import { MuiChipsInput } from "mui-chips-input";
+import { v4 as uuidv4 } from "uuid";
+// import theme from "./theme.jsx";
+import algoliasearch from 'algoliasearch/lite';
+import { InstantSearch, Configure, connectHits, connectSearchBox, connectRefinementList } from 'react-instantsearch-dom';
+import { debounce } from "lodash";
+import { removeQuery } from "../components/ScrollToTop.jsx";
+
+import {green, yellow, red, grey, triggers as wfTriggers, } from "../views/AngularWorkflow.jsx"
+import Licensed from "../components/Licensed.jsx";
+
+
+const searchClient = algoliasearch("JNSS5CFDZZ", "c8f882473ff42d41158430be09ec2b4e");
+
+const svgSize = 24;
+const imagesize = 23;
+
+// Session-based modal visibility helper
+const AI_ANNOUNCEMENT_SESSION_KEY = "ai_announcement_session";
+
+const getCookie = (name) => {
+  if (typeof document === "undefined") return "";
+  const pattern = `; ${document.cookie}`;
+  const parts = pattern.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return decodeURIComponent(parts.pop().split(";").shift() || "");
+  }
+  return "";
+};
+
+export const HandleJsonCopy = (base, copy, base_node_name) => {
+    if (typeof copy.name === "string") {
+      copy.name = copy.name.replaceAll(" ", "_");
+    }
+
+    //lol
+    if (typeof base === 'object' || typeof base === 'dict') {
+      base = JSON.stringify(base)
+    }
+
+    if (base_node_name === "execution_argument" || base_node_name === "Runtime Argument") {
+      base_node_name = "exec"
+    }
+
+    //console.log("COPY: ", base_node_name, copy);
+
+    //var newitem = JSON.parse(base);
+    var newitem = validateJson(base).result
+
+    var to_be_copied = "$" + base_node_name?.toLowerCase()?.replaceAll(" ", "_");
+    for (let copykey in copy.namespace) {
+      if (copy.namespace[copykey].includes("Results for")) {
+        continue;
+      }
+
+      if (newitem !== undefined && newitem !== null) {
+        newitem = newitem[copy.namespace[copykey]];
+        if (!isNaN(copy.namespace[copykey])) {
+          to_be_copied += ".#";
+        } else {
+          to_be_copied += "." + copy.namespace[copykey];
+        }
+      }
+    }
+
+    if (newitem !== undefined && newitem !== null) {
+      newitem = newitem[copy.name];
+      if (!isNaN(copy.name)) {
+        to_be_copied += ".#";
+      } else {
+        to_be_copied += "." + copy.name;
+      }
+    }
+
+    to_be_copied = to_be_copied.replaceAll(" ", "_");
+	console.log("COPY: ", to_be_copied);
+    const elementName = "copy_element_shuffle";
+    var copyText = document.getElementById(elementName);
+    if (copyText !== null && copyText !== undefined) {
+      //console.log("NAVIGATOR: ", navigator);
+      const clipboard = navigator.clipboard;
+      if (clipboard === undefined) {
+        toast("Can only copy over HTTPS (port 3443)");
+        return;
+      }
+
+      navigator.clipboard.writeText(to_be_copied).catch(() => {
+        const temp = document.createElement("textarea");
+        temp.value = to_be_copied;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        document.body.removeChild(temp);
+      });
+      //console.log("COPYING!");
+      toast("Copied JSON path to clipboard.")
+    } else {
+      console.log("Couldn't find element ", elementName);
+    }
+}
+
+export const handleReactJsonClipboard = (copy) => {
+	const elementName = "copy_element_shuffle";
+	var copyText = document.getElementById(elementName);
+	if (copyText !== null && copyText !== undefined) {
+	  if (
+		copy.namespace !== undefined &&
+		copy.name !== undefined &&
+		copy.src !== undefined
+	  ) {
+		copy = copy.src;
+	  }
+
+	  const clipboard = navigator.clipboard;
+	  if (clipboard === undefined) {
+		toast("Can only copy over HTTPS (port 3443)");
+		return;
+	  }
+
+	  var stringified = JSON.stringify(copy);
+	  if (stringified.startsWith('"') && stringified.endsWith('"')) {
+		stringified = stringified.substring(1, stringified.length - 1);
+	  }
+
+      navigator.clipboard.writeText(stringified).catch(() => {
+        const temp = document.createElement("textarea");
+        temp.value = stringified;
+        document.body.appendChild(temp);
+        temp.select();
+        document.execCommand("copy");
+        document.body.removeChild(temp);
+      });
+
+	  console.log("COPYING!");
+	  toast.success("Copied Value, NOT json path.")
+	} else {
+	  console.log("Failed to copy from " + elementName + ": ", copyText);
+	}
+}
+
+
+
+// Takes an action in Shuffle and
+// Returns information about the icon, the color etc to be used
+// This can be used for actions of all types
+// PARSED ICON PROPERTIES:
+//   icon            - SVG <path> d attribute string
+//   iconColor       - path fill/stroke color (used in cytoscape node SVGs; "white" on colored bg)
+//   iconBackgroundColor - solid bg color for the node
+//   fillGradient    - [color1, color2] for gradient bg; if set, fillstyle = "linear-gradient"
+//   originalIcon    - React <svg> element (22x22, currentColor) used in ParsedActionNew dropdown
+//   svgViewBox      - viewBox for the SVG; "0 0 48 48" for 48-coord paths, defaults to "0 0 24 24"
+//   dropdownViewBox - tighter crop viewBox for dropdown rendering (auto: "10 10 28 28" for 48x48)
+//   useStroke       - true → render path with stroke (no fill); for outline-style icons
+//   useFill         - true + useStroke → render with BOTH fill and stroke
+//   fillRule        - "evenodd" for complex filled shapes (e.g. filter); default "nonzero"
+//
+export const GetIconInfo = (action) => {
+    // Finds the icon based on the action. Should be verbs.
+    const iconList = [
+        { key: "cases", values: ["cases", "ticket", "tickets", "alert"] },
+        { key: "cache_add", values: ["set_cache"] },
+        { key: "cache_get", values: ["get_cache"] },
+        { key: "filter", values: ["filter"] },
+        { key: "merge", values: ["join", "merge", "route", "router"] },
+        {key: "get_file_value", values: ["get_file_value"]},
+        {
+            key: "search",
+            values: ["search", "find", "locate", "index", "analyze", "anal", "match", "check cache", "check", "verify", "validate", "siem", ],
+        },
+        { key: "list", values: ["list", "head", "options"] },
+        {
+            key: "download",
+            values: [
+				"ingest",
+                "capture",
+                "get",
+                "download",
+                "return",
+                "hello_world",
+                "curl",
+                "request",
+                "export",
+                "preview",
+            ],
+        },
+        { key: "add", values: ["add", "accept",] },
+        { key: "delete", values: ["delete", "remove", "clear", "clean", "dismiss",] },
+        {
+            key: "repeat",
+            values: ["repeat", "retry", "pause", "skip", "copy", "replicat", "demo",],
+        },
+        { key: "execute", values: ["execute", "run", "play", "raise", "control", "ctrl"] },
+        { key: "extract", values: ["extract", "unpack", "decompress", "open"] },
+        { key: "inflate", values: ["inflate", "pack", "compress"] },
+        {
+            key: "edit",
+            values: [
+                "modify",
+                "update",
+                "create",
+                "edit",
+                "put",
+                "patch",
+                "change",
+                "replace",
+                "conver",
+                "map",
+                "format",
+                "escape",
+                "describe",
+            ],
+        },
+        {
+            key: "compare",
+            values: ["compare", "convert", "to", "filter", "translate", "parse"],
+        },
+        { key: "assets", values: ["cmdb", "assets", "asset", "cmdb", "inventory", "host", "hosts", "device", "devices", "app",] },
+        { key: "close", values: ["close", "stop", "cancel", "block"] },
+        { key: "communication", values: ["communication", "comms", "email", "mail",] },
+        { key: "eradication", values: ["eradication", "edr", "xdr", "sigma", "yara",] },
+        { key: "iam", values: ["iam", "identity", "access", "auth", "authentication", "authorization", "oauth", "sso", "openid"] },
+		{ key: "network", values: ["network", "net", "networking", "firewall", "proxy", "vpn", "sdwan", "sd-wan"] },
+        {
+            key: "send",
+            values: [
+                "send",
+                "dispatch",
+                "mail",
+                "forward",
+                "post",
+                "submit",
+                "mark",
+                "set",
+                "release",
+            ],
+        },
+		{
+			key: "secret",
+			values: [
+				"api",
+				"password",
+				"passwd",
+				"protect",
+			],
+		},
+		{ key: "intel", values: ["intel", "feed", "threat intel", "threat intelligence", "ti", "t.i.", "t.i", "ti.", "rule", "technique", "tactic", "techniques", "tactics", "ioc", "indicator", "hash", "ip", "url", "domain", "sha", "md5",] },
+    ];
+
+    var selectedKey = ""
+    if (action.app_name == "Integration Framework") {
+        selectedKey = "magic"
+    } else if (action.name === undefined || action.name === null) {
+    } else {
+        const actionname = action.name.toLowerCase()
+        for (var key in iconList) {
+            //console.log(iconList[key], actionname)
+            const found = iconList[key].values.find((value) =>
+                actionname.includes(value)
+            )
+            if (found !== null && found !== undefined) {
+                selectedKey = iconList[key].key
+                break
+            }
+        }
+    }
+
+    // Some of these are manually parsed or created instead of material ui
+    //M8 0C3.58 0 0 1.79 0 4C0 6.21 3.58 8 8 8C12.42 8 16 6.21 16 4C16 1.79 12.42 0 8 0ZM0 6V9C0 11.21 3.58 13 8 13C12.42 13 16 11.21 16 9V6C16 8.21 12.42 10 8 10C3.58 10 0 8.21 0 6ZM0 11V14C0 16.21 3.58 18 8 18C9.41 18 10.79 17.81 12 17.46V14.46C10.79 14.81 9.41 15 8 15C3.58 15 0 13.21 0 11ZM17 11V14H14V16H17V19H19V16H22V14H19V11
+    //https://www.figma.com/file/uCfnMs5w6wnLx6ehPHEV74/Figma-Material-Design-System-v3_0?node-id=834%3A21
+    //COLORS: https://www.pinterest.co.uk/pin/326299935499972946/
+    const defaultColor = "#f76b1c";
+    const defaultGradient = ["#fad961", "#f76b1c"];
+    const parsedIcons = {
+        magic: {
+            icon: "M7.5 5.6 10 7 8.6 4.5 10 2 7.5 3.4 5 2l1.4 2.5L5 7zm12 9.8L17 14l1.4 2.5L17 19l2.5-1.4L22 19l-1.4-2.5L22 14zM22 2l-2.5 1.4L17 2l1.4 2.5L17 7l2.5-1.4L22 7l-1.4-2.5zm-7.63 5.29a.9959.9959 0 0 0-1.41 0L1.29 18.96c-.39.39-.39 1.02 0 1.41l2.34 2.34c.39.39 1.02.39 1.41 0L16.7 11.05c.39-.39.39-1.02 0-1.41zm-1.03 5.49-2.12-2.12 2.44-2.44 2.12 2.12z",
+            iconColor: "white",
+            iconBackgroundColor: "red",
+            originalIcon: "",
+            fillGradient: ["#FF0000", "#FF7F00", "#FFFF00", "#00FF00", "#0000FF", "#4B0082", "#8A2BE2"],
+        },
+        communication: {
+            icon: "M9.89516 7.71433H8.60945V5.1429H9.89516V7.71433ZM9.89516 10.2858H8.60945V9.00004H9.89516V10.2858ZM14.3952 2.57147H4.10944C3.76845 2.57147 3.44143 2.70693 3.20031 2.94805C2.95919 3.18917 2.82373 3.51619 2.82373 3.85719V15.4286L5.39516 12.8572H14.3952C14.7362 12.8572 15.0632 12.7217 15.3043 12.4806C15.5454 12.2395 15.6809 11.9125 15.6809 11.5715V3.85719C15.6809 3.14361 15.1023 2.57147 14.3952 2.57147Z",
+            iconColor: "white",
+            iconBackgroundColor: "#8acc3f",
+            originalIcon: "",
+            fillGradient: ["#8acc3f", "#459622"],
+        },
+        cases: {
+            icon: "M15.6408 8.39233H18.0922V10.0287H15.6408V8.39233ZM0.115234 8.39233H2.56663V10.0287H0.115234V8.39233ZM9.92083 0.21051V2.66506H8.28656V0.21051H9.92083ZM3.31839 2.25596L5.05889 4.00687L3.89856 5.16051L2.15807 3.42596L3.31839 2.25596ZM13.1485 3.99869L14.8808 2.25596L16.0493 3.42596L14.3088 5.16051L13.1485 3.99869ZM9.10369 4.30142C10.404 4.30142 11.651 4.81863 12.5705 5.73926C13.4899 6.65989 14.0065 7.90854 14.0065 9.21051C14.0065 11.0269 13.0178 12.6141 11.5551 13.4651V14.9378C11.5551 15.1548 11.469 15.3629 11.3158 15.5163C11.1625 15.6698 10.9547 15.756 10.738 15.756H7.46943C7.25271 15.756 7.04487 15.6698 6.89163 15.5163C6.73839 15.3629 6.6523 15.1548 6.6523 14.9378V13.4651C5.18963 12.6141 4.2009 11.0269 4.2009 9.21051C4.2009 7.90854 4.71744 6.65989 5.63689 5.73926C6.55635 4.81863 7.80339 4.30142 9.10369 4.30142ZM10.738 16.5741V17.3923C10.738 17.6093 10.6519 17.8174 10.4986 17.9709C10.3454 18.1243 10.1375 18.2105 9.92083 18.2105H8.28656C8.06984 18.2105 7.862 18.1243 7.70876 17.9709C7.55552 17.8174 7.46943 17.6093 7.46943 17.3923V16.5741H10.738ZM8.28656 14.1196H9.92083V12.3769C11.3345 12.0169 12.3722 10.7323 12.3722 9.21051C12.3722 8.34253 12.0279 7.5101 11.4149 6.89634C10.8019 6.28259 9.97056 5.93778 9.10369 5.93778C8.23683 5.93778 7.40546 6.28259 6.79249 6.89634C6.17953 7.5101 5.83516 8.34253 5.83516 9.21051C5.83516 10.7323 6.87292 12.0169 8.28656 12.3769V14.1196Z",
+            iconColor: "white",
+            iconBackgroundColor: "#8acc3f",
+            originalIcon: "",
+            fillGradient: ["#8acc3f", "#459622"],
+        },
+        // cache_add: {
+        //     icon: "M11 3C6.58 3 3 4.79 3 7C3 9.21 6.58 11 11 11C15.42 11 19 9.21 19 7C19 4.79 15.42 3 11 3ZM3 9V12C3 14.21 6.58 16 11 16C15.42 16 19 14.21 19 12V9C19 11.21 15.42 13 11 13C6.58 13 3 11.21 3 9ZM3 14V17C3 19.21 6.58 21 11 21C12.41 21 13.79 20.81 15 20.46V17.46C13.79 17.81 12.41 18 11 18C6.58 18 3 16.21 3 14ZM20 14V17H17V19H20V22H22V19H25V17H22V14",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#8acc3f",
+        //     originalIcon: "",
+        //     fillGradient: ["#8acc3f", "#459622"],
+        // },
+        get_file_value: {
+            icon: "M25.8332 14.8335H18.4998C18.0136 14.8335 17.5473 15.0267 17.2035 15.3705C16.8597 15.7143 16.6665 16.1806 16.6665 16.6668V31.3335C16.6665 31.8197 16.8597 32.286 17.2035 32.6299C17.5473 32.9737 18.0136 33.1668 18.4998 33.1668H29.4998C29.9861 33.1668 30.4524 32.9737 30.7962 32.6299C31.14 32.286 31.3332 31.8197 31.3332 31.3335V20.3335L25.8332 14.8335Z M25.8335 14.8335V20.3335H31.3335 M24 29.5V24 M21.25 26.75H26.75",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(43, 189, 160, 1)",
+            originalIcon: "",
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+            fillGradient: ["rgba(43, 189, 160, 1)", "rgba(43, 189, 160, 1)"],
+        },
+        cache_add: {
+            icon: "M24 20.6667C28.1421 20.6667 31.5 19.5475 31.5 18.1667C31.5 16.786 28.1421 15.6667 24 15.6667C19.8579 15.6667 16.5 16.786 16.5 18.1667C16.5 19.5475 19.8579 20.6667 24 20.6667Z M31.5 24C31.5 25.3833 28.1667 26.5 24 26.5C19.8333 26.5 16.5 25.3833 16.5 24 M16.5 18.1667V29.8334C16.5 31.2167 19.8333 32.3334 24 32.3334C28.1667 32.3334 31.5 31.2167 31.5 29.8334V18.1667 M32 35C34.2091 35 36 33.2091 36 31C36 28.7909 34.2091 27 32 27C29.7909 27 28 28.7909 28 31C28 33.2091 29.7909 35 32 35Z M32 29V33 M30 31H34",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(43, 189, 160, 1)",
+            fillGradient: ["rgba(43, 189, 160, 1)", "rgba(43, 189, 160, 1)"],
+            originalIcon: "",
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        // cache_get: {
+        //     icon: "M12 2C7.58 2 4 3.79 4 6C4 8.06 7.13 9.74 11.15 9.96C12.45 8.7 14.19 8 16 8C16.8 8 17.59 8.14 18.34 8.41C19.37 7.74 20 6.91 20 6C20 3.79 16.42 2 12 2ZM4 8V11C4 12.68 6.08 14.11 9 14.71C9.06 13.7 9.32 12.72 9.77 11.82C6.44 11.34 4 9.82 4 8ZM15.93 9.94C14.75 9.95 13.53 10.4 12.46 11.46C8.21 15.71 13.71 22.5 18.75 19.17L23.29 23.71L24.71 22.29L20.17 17.75C22.66 13.97 19.47 9.93 15.93 9.94ZM15.9 12C17.47 11.95 19 13.16 19 15C19 15.7956 18.6839 16.5587 18.1213 17.1213C17.5587 17.6839 16.7956 18 16 18C13.33 18 12 14.77 13.88 12.88C14.47 12.29 15.19 12 15.9 12ZM4 13V16C4 18.05 7.09 19.72 11.06 19.95C10.17 19.07 9.54 17.95 9.22 16.74C6.18 16.17 4 14.72 4 13Z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#8acc3f",
+        //     originalIcon: "",
+        //     fillGradient: ["#8acc3f", "#459622"],
+        // },
+        cache_get: {
+            icon: "M22.25 14C24.379 14 26.3377 14.2865 27.79 14.7705C28.5123 15.0113 29.1516 15.3144 29.625 15.6875C30.09 16.054 30.5 16.5766 30.5 17.25V25.0889C30.4172 25.0848 30.3338 25.083 30.25 25.083C29.8184 25.083 29.3995 25.1374 29 25.2402V25.0537C28.6427 25.2475 28.2369 25.4175 27.7998 25.5635C26.3499 26.0475 24.3907 26.333 22.25 26.333C20.1093 26.333 18.1501 26.0475 16.7002 25.5635C16.2631 25.4175 15.8573 25.2475 15.5 25.0537V28.917C15.5002 28.9389 15.5137 29.0744 15.8018 29.3027C16.085 29.5272 16.542 29.7623 17.1748 29.9736C18.4332 30.3937 20.2243 30.667 22.25 30.667C23.3382 30.667 24.3581 30.5844 25.2646 30.4463C25.3016 30.9605 25.4159 31.4527 25.5967 31.9121C24.5747 32.0741 23.4408 32.167 22.25 32.167C20.1092 32.167 18.1502 31.8805 16.7002 31.3965C15.9791 31.1558 15.342 30.8524 14.8701 30.4785C14.4059 30.1106 14.0002 29.5883 14 28.917V17.25C14 16.5766 14.41 16.054 14.875 15.6875C15.3484 15.3144 15.9877 15.0113 16.71 14.7705C18.1623 14.2865 20.121 14 22.25 14ZM29 19.2168C28.64 19.4118 28.2306 19.5826 27.79 19.7295C26.3377 20.2135 24.379 20.5 22.25 20.5C20.121 20.5 18.1623 20.2135 16.71 19.7295C16.2694 19.5826 15.86 19.4118 15.5 19.2168V23.083C15.5001 23.1039 15.5122 23.2403 15.8018 23.4697C16.0851 23.6941 16.5421 23.9294 17.1748 24.1406C18.4332 24.5607 20.2243 24.833 22.25 24.833C24.2757 24.833 26.0668 24.5607 27.3252 24.1406C27.9579 23.9294 28.4149 23.6941 28.6982 23.4697C28.9878 23.2403 28.9999 23.1039 29 23.083V19.2168ZM22.25 15.5C20.2371 15.5 18.4456 15.7727 17.1836 16.1934C16.5488 16.405 16.0893 16.6412 15.8037 16.8662C15.5099 17.0978 15.5 17.2331 15.5 17.25C15.5001 17.2679 15.5111 17.4032 15.8037 17.6338C16.0893 17.8588 16.5488 18.095 17.1836 18.3066C18.4456 18.7273 20.2371 19 22.25 19C24.2628 19 26.0544 18.7273 27.3164 18.3066C27.9512 18.095 28.4107 17.8588 28.6963 17.6338C28.9889 17.4032 28.9999 17.2679 29 17.25C29 17.2331 28.9901 17.0978 28.6963 16.8662C28.4107 16.6412 27.9512 16.405 27.3164 16.1934C26.0544 15.7727 24.2629 15.5 22.25 15.5Z M29.9166 32.4164C31.3893 32.4164 32.5831 31.2225 32.5831 29.7497C32.5831 28.2769 31.3893 27.083 29.9166 27.083C28.4439 27.083 27.25 28.2769 27.25 29.7497C27.25 31.2225 28.4439 32.4164 29.9166 32.4164Z M33.2505 33.0828L31.8005 31.6328",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(43, 189, 160, 1)",
+            fillGradient: ["rgba(43, 189, 160, 1)", "rgba(43, 189, 160, 1)"],
+            originalIcon: "",
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        repeat: {
+            icon: "M7.417 8.667V11.167H9.917 M16.583 15.333V12.833H14.083 M15.538 10.75C15.326 10.153 14.967 9.619 14.494 9.198C14.020 8.777 13.448 8.483 12.830 8.343C12.212 8.204 11.569 8.223 10.960 8.399C10.352 8.575 9.798 8.902 9.350 9.35L7.417 11.167M16.583 12.833L14.650 14.65C14.202 15.098 13.648 15.425 13.040 15.601C12.431 15.777 11.788 15.796 11.170 15.657C10.552 15.517 9.980 15.223 9.507 14.802C9.033 14.381 8.674 13.847 8.463 13.25",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(242, 101, 59, 1)",
+            fillGradient: ["rgba(242, 101, 59, 1)", "rgba(242, 101, 59, 1)"],
+            originalIcon: <CachedIcon />,
+            useStroke: true,
+            dropdownViewBox: "5 7 14 10",
+        },
+        // repeat: {
+        //     icon: "M19 8l-4 4h3c0 3.31-2.69 6-6 6-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.97 19.54 10.43 20 12 20c4.42 0 8-3.58 8-8h3l-4-4zM6 12c0-3.31 2.69-6 6-6 1.01 0 1.97.25 2.8.7l1.46-1.46C15.03 4.46 13.57 4 12 4c-4.42 0-8 3.58-8 8H1l4 4 4-4H6z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: defaultColor,
+        //     originalIcon: <CachedIcon />,
+        // },
+
+        add: {
+            icon: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+            iconColor: "white",
+            iconBackgroundColor: defaultColor,
+            originalIcon: <AddIcon />,
+        },
+        // edit: {
+        //     icon: "M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: defaultColor,
+        //     originalIcon: <EditIcon />,
+        // },
+        edit: {
+            icon: "M27.75 17.25C27.947 17.053 28.1808 16.8967 28.4382 16.7901C28.6956 16.6835 28.9714 16.6287 29.25 16.6287C29.5286 16.6287 29.8044 16.6835 30.0618 16.7901C30.3192 16.8967 30.553 17.053 30.75 17.25C30.947 17.447 31.1032 17.6808 31.2098 17.9382C31.3165 18.1956 31.3713 18.4714 31.3713 18.75C31.3713 19.0286 31.3165 19.3044 31.2098 19.5618C31.1032 19.8191 30.947 20.053 30.75 20.25L20.625 30.375L16.5 31.5L17.625 27.375L27.75 17.25Z",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(242, 101, 59, 1)",
+            fillGradient: ["rgba(242, 101, 59, 1)", "rgba(242, 101, 59, 1)"],
+            originalIcon: <EditIcon />,
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        // filter: {
+        //     icon: "M4.25 5.61C6.27 8.2 10 13 10 13v6c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-6s3.72-4.8 5.74-7.39c.51-.66.04-1.61-.79-1.61H5.04c-.83 0-1.3.95-.79 1.61z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#f5515f",
+        //     originalIcon: "",
+        //     fillGradient: ["#f5515f", "#a1051d"],
+        // },
+            filter: {
+            icon: "M31.25 17C31.25 16.8619 31.1381 16.75 31 16.75H17C16.8619 16.75 16.75 16.8619 16.75 17V18.5859C16.75 18.6522 16.7764 18.7158 16.8232 18.7627L21.2373 23.1768C21.5655 23.5049 21.75 23.95 21.75 24.4141V30.958L26.25 29.459V24.4141C26.25 23.95 26.4345 23.5049 26.7627 23.1768L31.1768 18.7627C31.2236 18.7158 31.25 18.6522 31.25 18.5859V17ZM32.75 18.5859C32.75 19.05 32.5655 19.4951 32.2373 19.8232L27.8232 24.2373C27.7764 24.2842 27.75 24.3478 27.75 24.4141V29.6396C27.75 30.1769 27.4066 30.6558 26.8955 30.8262L21.8955 32.4922C21.0874 32.7615 20.2509 32.1611 20.25 31.3076V24.4141C20.25 24.3478 20.2236 24.2842 20.1768 24.2373L15.7627 19.8232C15.4345 19.4951 15.25 19.05 15.25 18.5859V17C15.25 16.0335 16.0335 15.25 17 15.25H31C31.9665 15.25 32.75 16.0335 32.75 17V18.5859Z",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(217, 56, 136, 1)",
+            originalIcon: "",
+            fillGradient: ["rgba(217, 56, 136, 1)", "rgba(217, 56, 136, 1)"],
+            fillRule: "evenodd",
+            svgViewBox: "0 0 48 48",
+            },
+        // merge: {
+        //     icon: "M17 20.41 18.41 19 15 15.59 13.59 17 17 20.41zM7.5 8H11v5.59L5.59 19 7 20.41l6-6V8h3.5L12 3.5 7.5 8z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#f5515f",
+        //     originalIcon: "",
+        //     fillGradient: ["#f5515f", "#a1051d"],
+        // },
+        merge: {
+            icon: "M23.4692 16.2696C23.7621 15.9768 24.2369 15.9769 24.5298 16.2696L29.3032 21.0421C29.5961 21.335 29.5961 21.8107 29.3032 22.1036C29.0103 22.3963 28.5345 22.3964 28.2417 22.1036L24.7495 18.6104V23.0802C24.7497 23.0867 24.7505 23.0932 24.7505 23.0997V24.0001C24.7507 28.0592 28.0409 31.3497 32.1001 31.3497C32.5141 31.3498 32.85 31.6857 32.8501 32.0997C32.8501 32.5138 32.5142 32.8496 32.1001 32.8497C28.4809 32.8497 25.3708 30.6766 23.9995 27.5645C22.6281 30.6765 19.519 32.8497 15.8999 32.8497C15.4857 32.8497 15.1499 32.5139 15.1499 32.0997C15.15 31.6856 15.4858 31.3497 15.8999 31.3497C19.9591 31.3497 23.2493 28.0592 23.2495 24.0001V18.6104L19.7573 22.1036C19.4644 22.3963 18.9886 22.3964 18.6958 22.1036C18.4032 21.8108 18.4032 21.3349 18.6958 21.0421L23.4692 16.2696Z",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(217, 56, 136, 1)",
+            originalIcon: "",
+            fillGradient: ["rgba(217, 56, 136, 1)", "rgba(217, 56, 136, 1)"],
+            useStroke: false,
+            useFill: true,
+            svgViewBox: "0 0 48 48",
+        },
+        // compare: {
+        //     icon: "M10 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h5v2h2V1h-2v2zm0 15H5l5-6v6zm9-15h-5v2h5v13l-5-6v9h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: defaultColor,
+        //     originalIcon: <CompareIcon />,
+        // },
+        compare: {
+            icon: "M19 15.75H23.7832V32.25H19C17.7574 32.25 16.75 31.2426 16.75 30V18C16.75 16.8352 17.6352 15.8771 18.7695 15.7617L19 15.75Z M26.667 16.125H29.0003C30.6572 16.125 32.0003 17.4681 32.0003 19.125V28.875C32.0003 30.5319 30.6572 31.875 29.0003 31.875H26.667",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(242, 101, 59, 1)",
+            originalIcon: "",
+            fillGradient: ["rgba(242, 101, 59, 1)", "rgba(242, 101, 59, 1)"],
+            useStroke: true,
+            useFill: true,
+            svgViewBox: "0 0 48 48",
+        },
+        extract: {
+            icon: "M3 3h18v2H3z",
+            iconColor: "white",
+            iconBackgroundColor: defaultColor,
+            originalIcon: <MaximizeIcon />,
+        },
+        inflate: {
+            icon: "M6 19h12v2H6z",
+            iconColor: "white",
+            iconBackgroundColor: defaultColor,
+            originalIcon: <MinimizeIcon />,
+        },
+        list: {
+            icon: "M3 9h14V7H3v2zm0 4h14v-2H3v2zm0 4h14v-2H3v2zm16 0h2v-2h-2v2zm0-10v2h2V7h-2zm0 6h2v-2h-2v2z",
+            iconColor: "white",
+            iconBackgroundColor: defaultColor,
+            originalIcon: <TocIcon />,
+        },
+        // execute: {
+        //     icon: "M8 5v14l11-7z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: defaultColor,
+        //     originalIcon: <PlayArrowIcon />,
+        // },
+        execute: {
+            icon: "M17.3335 28.1667L22.3335 23.1667L17.3335 18.1667 M24 29.8333H30.6667",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(242, 101, 59, 1)",
+            fillGradient: ["rgba(242, 101, 59, 1)", "rgba(242, 101, 59, 1)"],
+            originalIcon: <PlayArrowIcon />,
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        // delete: {
+        //     icon: "M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#03030e",
+        //     originalIcon: <DeleteIcon />,
+        //     fillGradient: ["#03030e", "#205d66"],
+        // },
+        delete: {
+            icon: "M15 18.5H33C31.5955 18.5 30.8933 18.5 30.3889 18.8371C30.1705 18.983 29.983 19.1705 29.8371 19.3889C29.5 19.8933 29.5 20.5955 29.5 22V27.5C29.5 29.3856 29.5 30.3284 28.9142 30.9142C28.3284 31.5 27.3856 31.5 25.5 31.5H22.5C20.6144 31.5 19.6716 31.5 19.0858 30.9142C18.5 30.3284 18.5 29.3856 18.5 27.5V22C18.5 20.5955 18.5 19.8933 18.1629 19.3889C18.017 19.1705 17.8295 18.983 17.6111 18.8371C17.1067 18.5 16.4045 18.5 15 18.5Z M21.5 15.5002C21.5 15.5002 22 14.5 24 14.5C26 14.5 26.5 15.5 26.5 15.5",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(98, 98, 98, 1)",
+            originalIcon: "",
+            fillGradient: ["rgba(98, 98, 98, 1)", "rgba(98, 98, 98, 1)"],
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        close: {
+            icon: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
+            iconColor: "white",
+            iconBackgroundColor: "#03030e",
+            originalIcon: <CloseIcon />,
+            fillGradient: ["#03030e", "#205d66"],
+        },
+        // send: {
+        //     icon: "M2.01 21L23 12 2.01 3 2 10l15 2-15 2z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#0373da",
+        //     originalIcon: <SendIcon />,
+        //     fillGradient: ["#0bc8bf", "#0373da"],
+        // },
+        send: {
+            icon: "M31.3332 16.6667L22.1665 25.8334 M31.3332 16.6667L25.4998 33.3334L22.1665 25.8334L14.6665 22.5001L31.3332 16.6667Z",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(128, 107, 255, 1)",
+            originalIcon: "",
+            fillGradient: ["rgba(128, 107, 255, 1)", "rgba(128, 107, 255    , 1)"],
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        // download: {
+        //     icon: "M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z",
+        //     iconColor: "white",
+        //     iconBackgroundColor: "#0373da",
+        //     originalIcon: <GetAppIcon />,
+        //     fillGradient: ["#0bc8bf", "#0373da"],
+        // },
+        download: {
+            icon: "M18 22L24 28M24 28L30 22M24 28L24 16 M17 33H31",
+            iconColor: "white",
+            iconBackgroundColor: "rgba(128, 107, 255, 1)",
+            originalIcon: "",
+            fillGradient: ["rgba(128, 107, 255, 1)", "rgba(128, 107, 255, 1)"],
+            useStroke: true,
+            svgViewBox: "0 0 48 48",
+        },
+        search: {
+            icon: "M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z",
+            iconColor: "white",
+            iconBackgroundColor: "green",
+            originalIcon: <SearchIcon />,
+        },
+		eradication: {
+            icon: "",
+            iconColor: "white",
+            iconBackgroundColor: "green",
+            originalIcon: <CoronavirusIcon />,
+		},
+		iam: {
+            icon: "",
+            iconColor: "white",
+            iconBackgroundColor: "green",
+            originalIcon: <FingerprintIcon />,
+		},
+		intel: {
+            icon: "",
+            iconColor: "white",
+            iconBackgroundColor: "green",
+            originalIcon: <PsychologyIcon />,
+		},
+		network: {
+            icon: "",
+            iconColor: "white",
+            iconBackgroundColor: "green",
+            originalIcon: <WifiIcon />,
+		},
+		assets: {
+            icon: "",
+            iconColor: "white",
+            iconBackgroundColor: "green",
+            originalIcon: <DevicesIcon />,
+		},
+		secret: {
+			icon: "",
+			iconColor: "white",
+			iconBackgroundColor: "green",
+			originalIcon: <LockIcon />,
+		},
+    }
+
+		/*
+        { key: "eradication", values: ["eradication", "edr", "xdr"] },
+        { key: "iam", values: ["iam", "identity", "access", "auth", "authentication", "authorization", "oauth", "sso", "openid"] },
+		{ key: "intel", values: ["intel", "threat intel", "threat intelligence", "ti", "t.i.", "t.i", "ti."] },
+		{ key: "network", values: ["network", "net", "networking", "firewall", "proxy", "vpn", "sdwan", "sd-wan"] },
+		{ key: "siem", values: ["siem", "security information and event management", "security information and event management", "security information and event management"] },
+		*/
+
+    var selectedItem = parsedIcons[selectedKey];
+    if (selectedItem === undefined || selectedItem === null) {
+        return {
+            icon: "",
+            iconColor: "",
+            iconBackground: "black",
+            originalIcon: "",
+        };
+    }
+
+    if (selectedItem.fillGradient === undefined) {
+        selectedItem.fillGradient = defaultGradient;
+        selectedItem.iconBackgroundColor = defaultColor;
+    }
+
+    if ((selectedItem.icon === "" || selectedItem.icon === undefined) && (selectedItem.originalIcon === undefined || selectedItem.originalIcon === "")) {
+        console.log(`MISSING PATH FOR ${selectedKey} (find in scope): `, selectedItem.originalIcon.type.type)
+    }
+
+    if (
+        selectedItem.icon !== "" &&
+        selectedItem.icon !== undefined
+    ) {
+        const iconViewBox = selectedItem.svgViewBox || `0 0 ${svgSize} ${svgSize}`;
+        // Use a tighter viewBox for dropdown icons so 48x48 centered content appears larger
+        const dropdownViewBox = selectedItem.dropdownViewBox || (iconViewBox === "0 0 48 48" ? "10 10 28 28" : iconViewBox);
+        const strokeW = iconViewBox === "0 0 48 48" ? "1.5" : "1";
+        // Build dropdown React SVG using the same stroke/fill logic as buildIconSvgPath
+        var svg_pin;
+        if (selectedItem.useStroke && selectedItem.useFill) {
+            svg_pin = (
+                <svg width={22} height={22} viewBox={dropdownViewBox} version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <path d={selectedItem.icon} fill="currentColor" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round"></path>
+                </svg>
+            );
+        } else if (selectedItem.useStroke) {
+            svg_pin = (
+                <svg width={22} height={22} viewBox={dropdownViewBox} version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <path d={selectedItem.icon} fill="none" stroke="currentColor" strokeWidth={strokeW} strokeLinecap="round" strokeLinejoin="round"></path>
+                </svg>
+            );
+        } else {
+            svg_pin = (
+                <svg width={22} height={22} viewBox={dropdownViewBox} version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <path d={selectedItem.icon} fill="currentColor" fillRule={selectedItem.fillRule || "nonzero"}></path>
+                </svg>
+            );
+        }
+        selectedItem.originalIcon = svg_pin;
+    }
+
+    return selectedItem;
+};
+
+// Builds the SVG <path .../> string for an icon with the proper fill/stroke attributes.
+// color: the fill/stroke color (e.g. "white" for cytoscape nodes, "currentColor" for React)
+// Returns an SVG path element string ready to embed inside an <svg> tag.
+export const buildIconSvgPath = (iconInfo, color) => {
+    const iconViewBox = iconInfo.svgViewBox || "0 0 24 24";
+    // For stroke icons: use proportional stroke width (0.75 for 24x24, 1.5 for 48x48)
+    // This ensures consistent visual appearance across different viewBox sizes
+    const strokeW = iconInfo.useStroke
+        ? (iconViewBox === "0 0 48 48" ? "1.5" : "0.75")
+        : (iconInfo.useFill ? "0" : "1.5");
+    if (iconInfo.useStroke && iconInfo.useFill) {
+        return `<path d="${iconInfo.icon}" fill="${color}" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    } else if (iconInfo.useStroke) {
+        return `<path d="${iconInfo.icon}" fill="none" stroke="${color}" stroke-width="${strokeW}" stroke-linecap="round" stroke-linejoin="round"/>`;
+    } else {
+        return `<path d="${iconInfo.icon}" fill="${color}"${iconInfo.fillRule ? ` fill-rule="${iconInfo.fillRule}"` : ""}/>`;
+    }
+};
+
+export const collapseField = (field, inputdata) => {
+  if (field === undefined || field === null) {
+    return true
+  }
+
+  if (field.namespace !== undefined && field.namespace !== null && field.namespace.length === 1) {
+	  return false 
+  }
+
+  if (field.name === "headers" || field.name === "cookies") {
+    return true
+  }
+
+  if (field.name === "result") {
+	  return false
+  }
+
+  if (field.type === "array") {
+    return true
+  }
+
+  // If more than 10 keys in object, collapse
+  if (field.type === "object") {
+    if (Object.keys(field.src).length > 7) {
+      return true
+    }
+  }
+
+  return false
+}
+
+export const validateJson = (showResult) => {
+    if (showResult === undefined || showResult === null) {
+        return {
+            valid: false,
+            result: showResult,
+        }
+    }
+
+    if (typeof showResult === 'string') {
+        showResult = showResult.split(" False").join(" false")
+        showResult = showResult.split(" True").join(" true")
+
+        showResult.replaceAll("False,", "false,")
+        showResult.replaceAll("True,", "true,")
+    }
+
+    if (typeof showResult === "object" || typeof showResult === "array") {
+		//console.log("Valid!: ", showResult)
+		// FIXME: Not returning as we want to recurse.
+        
+		return {
+            valid: true,
+            result: showResult,
+        }
+    }
+
+    if (showResult[0] === "\"") {
+        return {
+            valid: false,
+            result: showResult,
+        }
+    }
+
+    var jsonvalid = true
+    try {
+        if (!showResult.includes("{") && !showResult.includes("[")) {
+            jsonvalid = false
+
+            return {
+                valid: jsonvalid,
+                result: showResult,
+            };
+        }
+    } catch (e) {
+
+        try {
+            showResult = showResult.split("'").join('"');
+            if (!showResult.includes("{") && !showResult.includes("[")) {
+                jsonvalid = false;
+            }
+        } catch (e) {
+
+            jsonvalid = false;
+        }
+    }
+
+    var result = showResult;
+    try {
+        result = jsonvalid ? JSON.parse(showResult, { "storeAsString": true }) : showResult;
+    } catch (e) {
+        ////console.log("Failed parsing JSON even though its valid: ", e)
+        jsonvalid = false;
+    }
+
+    if (jsonvalid === false) {
+
+        if (typeof showResult === 'string') {
+            showResult = showResult.trim()
+        }
+
+        try {
+            var newstr = showResult.replaceAll("'", '"')
+
+            // Basic workarounds for issues with Python Dicts -> JSON
+            if (newstr.includes(": None")) {
+                newstr = newstr.replaceAll(": None", ': null')
+            }
+
+            if (newstr.includes("[\"{") && newstr.includes("}\"]")) {
+                newstr = newstr.replaceAll("[\"{", '[{')
+                newstr = newstr.replaceAll("}\"]", '}]')
+            }
+
+            if (newstr.includes("{\"[") && newstr.includes("]\"}")) {
+                newstr = newstr.replaceAll("{\"[", '[{')
+                newstr = newstr.replaceAll("]\"}", '}]')
+            }
+
+            result = JSON.parse(newstr)
+            jsonvalid = true
+        } catch (e) {
+
+            //console.log("Failed parsing JSON even though its valid (2): ", e)
+            jsonvalid = false
+        }
+    }
+
+    if (jsonvalid && typeof result === "number") {
+        jsonvalid = false
+    }
+
+    // This is where we start recursing
+	// Problem: Loops aren't recursed properly.
+    if (jsonvalid) {
+        // Check fields if they can be parsed too 
+        try {
+            for (const [key, value] of Object.entries(result)) {
+				if (value === null || value === undefined) {
+					continue
+				}
+
+				try {
+					if (typeof value === "string" && (value.startsWith("{") || value.startsWith("["))) {
+						//console.log("CHECKING STRING: ", value)
+
+						const inside_result = validateJson(value)
+						if (inside_result.valid) {
+							if (typeof inside_result.result === "string") {
+								const newres = JSON.parse(inside_result.result)
+
+								result[key] = newres
+							} else {
+								result[key] = inside_result.result
+							}
+						}
+					} else {
+						// Usually only reaches here if raw array > dict > value
+						if (typeof showResult !== "array") {
+							for (const [subkey, subvalue] of Object.entries(value)) {
+								if (typeof subvalue === "string" && (subvalue.startsWith("{") || subvalue.startsWith("["))) {
+									const inside_result = validateJson(subvalue)
+									if (inside_result.valid) {
+										if (typeof inside_result.result === "string") {
+											const newres = JSON.parse(inside_result.result)
+											result[key][subkey] = newres
+										} else {
+											result[key][subkey] = inside_result.result
+										}
+									}
+								}
+
+							}
+						} else {
+							console.log("Skip array: ", value)
+						}
+					}
+				} catch (e) {
+					console.log(`Failed to parse '${key}': '${value}': `, e, JSON.stringify(result))
+				}
+            }
+        } catch (e) {
+            console.log("Failed parsing inside json subvalues: ", e, result)
+        }
+    }
+
+	//console.log("Result: ", result)
+
+	try { 
+		const stringified = JSON.stringify(result)
+		if ((stringified.startsWith("{") && stringified.endsWith("}")) || (stringified.startsWith("[") && stringified.endsWith("]"))) {
+			result = JSON.parse(stringified)
+			jsonvalid = true
+		}
+	} catch(e) {
+		jsonvalid = false
+	}
+
+	const toReturn = {
+        result: result,
+        valid: jsonvalid,
+    }
+
+    return toReturn
+};
+
+//Custom hook for handling styling of the dropzone
+const useDropzoneStyles = () => {
+    const { leftSideBarOpenByClick, themeMode, brandColor } = useContext(Context);
+    const theme = getTheme(themeMode, brandColor);
+
+    return React.useMemo(() => ({
+        paddingTop: 70,
+        // minHeight: 1000,
+        backgroundColor: theme.palette.backgroundColor,
+        fontFamily: theme.typography?.fontFamily,
+        // maxWidth: window.innerWidth > 1366 ? 1366 : isMobile ? "100%" : 1200,
+        paddingLeft: leftSideBarOpenByClick ? 200 : 0,
+        transition: "padding-left 0.3s ease",
+    }), [leftSideBarOpenByClick, theme]);
+};
+
+//Wrapper for the dropzone component
+const DropzoneWrapper = memo(({ onDrop, WorkflowView }) => {
+    const dropzoneStyles = useDropzoneStyles();
+    return (
+        <Dropzone style={dropzoneStyles} onDrop={onDrop}>
+            <WorkflowView />
+        </Dropzone>
+    );
+});
+
+const Workflows2 = (props) => {
+    const { globalUrl, isLoggedIn, isLoaded, userdata, checkLogin } = props;
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [currTab, setCurrTab] = useState(0);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [selectedCategory, setSelectedCategory] = useState([]);
+    const [selectedLabel, setSelectedLabel] = useState([]);
+    const [mouseHoverIndex, setMouseHoverIndex] = useState(-1);
+    const [isLoadingWorkflow, setIsLoadingWorkflow] = useState(false);
+    const [isLoadingPublicWorkflow, setIsLoadingPublicWorkflow] = useState(false);
+    const [view, setView] = useState(localStorage?.getItem("workflowView") || "grid");
+    const [currentOrg, setCurrentOrg] = useState(null);
+
+    const isCloud = window.location.host === "localhost:3002" || window.location.host === "shuffler.io";
+	const [showExecutionStats, setShowExecutionStats] = React.useState(localStorage?.getItem("showExecutionStats") === "true") 
+	const [showWorkflowImages, setShowWorkflowImages] = React.useState(localStorage?.getItem("showWorkflowImages") === "true")
+
+    const imgSize = 60;
+
+    const { themeMode, brandColor, brandName } = useContext(Context);
+    const theme = getTheme(themeMode, brandColor);
+    const chipStyle = {
+        backgroundColor: theme.palette.chipStyle.backgroundColor,
+        marginRight: 5,
+        paddingLeft: 5,
+        paddingRight: 5,
+        height: 35,
+        cursor: "pointer",
+        borderColor: theme.palette.chipStyle.borderColor,
+        color: theme.palette.chipStyle.color,
+        fontSize: "14px",
+        fontFamily: theme.typography?.fontFamily,
+        borderRadius: "17.5px"
+    };
+
+    const newStyles = makeStyles(() => {
+
+        return {
+            datagrid: {
+                border: 0,
+                "& .MuiDataGrid-columnsContainer": {
+                    backgroundColor:
+                        theme.palette?.type === "light" ? "#fafafa" : theme.palette?.inputColor,
+                },
+                "& .MuiDataGrid-iconSeparator": {
+                    display: "none",
+                },
+                "& .MuiDataGrid-colCell, .MuiDataGrid-cell": {
+                    borderRight: `1px solid ${theme.palette?.type === "light" ? "white" : "#303030"
+                        }`,
+                },
+                "& .MuiDataGrid-columnsContainer, .MuiDataGrid-cell": {
+                    borderBottom: `1px solid ${theme.palette?.type === "light" ? "#f0f0f0" : "#303030"
+                        }`,
+                },
+                "& .MuiDataGrid-cell": {
+                    color:
+                        theme.palette?.type === "light" ? "white" : "rgba(255,255,255,0.65)",
+                },
+                "& .MuiPaginationItem-root, .MuiTablePagination-actions, .MuiTablePagination-caption":
+                {
+                    borderRadius: 0,
+                    color: "white",
+                },
+            },
+        }
+    })
+
+    const classes = newStyles(theme);
+
+    const referenceUrl = globalUrl + "/api/v1/hooks/";
+
+    var upload = "";
+
+    const [workflows, setWorkflows] = React.useState([]);
+    const [workflowTimelines, setWorkflowTimelines] = React.useState([]);
+    const [backgroundWorkflows, setBackgroundWorkflows] = React.useState([]);
+    const [backupWorkflows, setBackupWorkflows] = React.useState([]);
+    const [_, setUpdate] = React.useState(""); // Used for rendering, don't remove
+    const [selectedUsecases, setSelectedUsecases] = React.useState([]);
+    const [filteredWorkflows, setFilteredWorkflows] = React.useState([]);
+    const [orgWorkflows, setOrgWorkflows] = React.useState([]);
+    const [myWorkflows, setMyWorkflows] = React.useState([]);
+    const [selectedWorkflow, setSelectedWorkflow] = React.useState({});
+    const [workflowDone, setWorkflowDone] = React.useState(false);
+    const [selectedWorkflowId, setSelectedWorkflowId] = React.useState("");
+
+    const [field1, setField1] = React.useState("");
+    const [field2, setField2] = React.useState("");
+    const [downloadUrl, setDownloadUrl] = React.useState("https://github.com/shuffle/workflows")
+    const [downloadBranch, setDownloadBranch] = React.useState("main");
+    const [loadWorkflowsModalOpen, setLoadWorkflowsModalOpen] =
+        React.useState(false);
+    const [syncMode, setSyncMode] = React.useState(false);
+    const [remoteWorkflows, setRemoteWorkflows] = React.useState([]);
+    const [remoteWorkflowsLoading, setRemoteWorkflowsLoading] = React.useState(false);
+    const [syncListModalOpen, setSyncListModalOpen] = React.useState(false);
+    const [exportModalOpen, setExportModalOpen] = React.useState(false);
+    const [exportData, setExportData] = React.useState("");
+    const [dialogModalOpen, setDialogModalOpen] = React.useState(false);
+    const [modalOpen, setModalOpen] = React.useState(false);
+    const [isEditing, setIsEditing] = React.useState(true);
+    const [newWorkflowName, setNewWorkflowName] = React.useState("");
+    const [newWorkflowDescription, setNewWorkflowDescription] =
+        React.useState("");
+    const [newWorkflowTags, setNewWorkflowTags] = React.useState([]);
+
+    const [defaultReturnValue, setDefaultReturnValue] = React.useState("");
+    const [blogpost, setBlogpost] = React.useState("");
+    const [status, setStatus] = React.useState("test");
+
+    const [deleteModalOpen, setDeleteModalOpen] = React.useState(false);
+    const [publishModalOpen, setPublishModalOpen] = React.useState(false);
+    const [editingWorkflow, setEditingWorkflow] = React.useState({});
+    const [isDropzone, setIsDropzone] = React.useState(false);
+    const [filters, setFilters] = React.useState([]);
+    const [submitLoading, setSubmitLoading] = React.useState(false);
+    const [actionImageList, setActionImageList] = React.useState([{ "large_image": "" }])
+
+    const [firstLoad, setFirstLoad] = React.useState(true);
+    const [aiAnnouncementModalOpen, setAiAnnouncementModalOpen] = React.useState(false);
+    const sessionRef = useRef("");
+    const [showMoreClicked, setShowMoreClicked] = React.useState(false);
+    const [usecases, setUsecases] = React.useState([]);
+    const [allUsecases, setAllUsecases] = React.useState({
+        "success": false,
+    });
+    const [appFramework, setAppFramework] = React.useState({});
+    const [drawerOpen, setDrawerOpen] = React.useState(false)
+    const [videoViewOpen, setVideoViewOpen] = React.useState(false)
+    const [gettingStartedItems, setGettingStartedItems] = React.useState([])
+    const [selectedWorkflowIndexes, setSelectedWorkflowIndexes] = React.useState([])
+    const [page, setPage] = React.useState(0);
+    const [pageSize, setPageSize] = React.useState(100);
+    const [highlightIds, setHighlightIds] = React.useState([])
+
+    const [apps, setApps] = React.useState([]);
+	const [isProdStatusOn, setIsProdStatusOn] = React.useState(false);
+
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    document.title = brandName?.length > 0 ? `${brandName} - Workflows` : "Shuffle - Workflows";
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(location.search);
+        const tabParam = queryParams.get('tab');
+        if (tabParam !== null && tabParam !== undefined) {
+            if (tabParam === 'org_workflows' && currTab !== 0) {
+                setCurrTab(0);
+            } else if (tabParam === 'my_workflows' && currTab !== 1) {
+                setCurrTab(1);
+            } else if (tabParam === 'all_workflows' && currTab !== 2) {
+                setCurrTab(2);
+            } else if (tabParam === 'background_processes' && currTab !== 4) {
+                setCurrTab(4);
+			}
+        }
+    }, [location.search]);
+
+    useEffect(() => {
+      const orgId = userdata?.active_org?.id;
+      if (!orgId) {
+        return;
+      }
+
+      let fetched = false;
+      fetch(`${globalUrl}/api/v1/orgs/${orgId}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      })
+        .then((response) => (response.ok ? response.json() : null))
+        .then((org) => {
+          if (!fetched && org) {
+            if (!isCloud) {
+                setCurrentOrg(org);
+                if (org?.cloud_sync  && org?.subscriptions[0]?.name?.toLowerCase().includes("enterprise") && org?.subscriptions[0]?.active) {
+                  setIsProdStatusOn(true);
+                } else if (org?.subscriptions[0]?.name?.toLowerCase().includes("enterprise") && org?.subscriptions[0]?.active) {
+                  setIsProdStatusOn(true);
+                } else {
+                  setIsProdStatusOn(false);
+                }
+              }
+          }
+        })
+        .catch(() => {});
+
+      return () => {
+        fetched = true;
+      };
+    }, [userdata?.active_org?.id, globalUrl]);
+
+    const handleTabChange = (event, newValue) => {
+        setCurrTab(newValue);
+
+		//if (view === "list" && currTab > 0) {
+		//	setView("grid")
+		//	setUpdate(Math.random())
+		//}
+
+        // Update URL query params based on tab index
+        const tabMapping = {
+            0: 'org_workflows',
+            1: 'my_workflows',
+            2: 'all_workflows',
+            3: 'backup_apps',
+            4: 'background_processes',
+        };
+        const queryParams = new URLSearchParams(location.search);
+        queryParams.set('tab', tabMapping[newValue]);
+
+		if (newValue === 4) {
+			setShowExecutionStats(true)
+			setView("grid")
+		}
+
+        navigate(`${location.pathname}?${queryParams.toString()}`);
+    };
+
+    const handleCreateWorkflow = () => {
+        setModalOpen(true)
+        setIsEditing(false)
+        setNewWorkflowName("")
+        setNewWorkflowDescription("")
+        setDefaultReturnValue("")
+        setEditingWorkflow({})
+        setNewWorkflowTags([])
+        setSelectedUsecases([])
+
+    };
+
+
+    const drawerWidth = drawerOpen ? 325 : 0
+
+    const sidebarKey = "getting_started_sidebar"
+    if (isLoggedIn === true && gettingStartedItems.length === 0 && (userdata.tutorials !== undefined && userdata.tutorials !== null && userdata.tutorials.length > 0) && workflowDone === true) {
+
+        const activeFiltered = userdata.tutorials.filter((item) => item.active === true)
+        if (activeFiltered.length > 0) {
+            var newfiltered = []
+            for (var key in activeFiltered) {
+                if (activeFiltered[key].name === "Discover Usecases") {
+                    if (workflows.length > 1) {
+                        activeFiltered[key].done = true
+                        activeFiltered[key].description = `${workflows.length} workflows created`
+                    }
+                }
+
+                newfiltered.push(activeFiltered[key])
+            }
+            setGettingStartedItems(activeFiltered)
+
+            /*
+                const sidebar = localStorage.getItem(sidebarKey)
+            if (sidebar === null || sidebar === undefined) {
+              console.log("No sidebar defined")
+                
+              localStorage.setItem(sidebarKey, "open");
+              setDrawerOpen(true)
+            } else {
+                if (sidebar === "open") {
+                    setDrawerOpen(true)
+                } else {
+                    setDrawerOpen(false)
+                }
+            }
+            */
+        }
+
+    }
+
+    React.useEffect(() => {
+        if (!isLoggedIn) return;
+      
+        const bannerID = "banner_ai_announcement";
+        const cookieSession = getCookie("__session") || "";
+        sessionRef.current = cookieSession;
+      
+        try {
+          const storedSession = localStorage.getItem(AI_ANNOUNCEMENT_SESSION_KEY) || "";
+      
+          // If backend says it's dismissed, sync storage and exit
+          if (userdata && Array.isArray(userdata.tutorials)) {
+            const alreadyDismissed = userdata.tutorials.some((t) => t?.name === bannerID);
+            if (alreadyDismissed) {
+              if (cookieSession && storedSession !== cookieSession) {
+                localStorage.setItem(AI_ANNOUNCEMENT_SESSION_KEY, cookieSession);
+              }
+              return;
+            }
+          } else if (!userdata) {
+            // Wait for userdata to load
+            return;
+          }
+      
+          // Open only if not dismissed in this session
+          if (cookieSession && storedSession !== cookieSession) {
+            setAiAnnouncementModalOpen(true);
+          }
+        } catch {
+          // If storage is unavailable, fallback to a single open per mount
+          setAiAnnouncementModalOpen((open) => open || true);
+        }
+      }, [isLoggedIn, userdata]);
+      
+      const handleCloseAiAnnouncement = React.useCallback(() => {
+        try {
+          const cookieSession = sessionRef.current || getCookie("__session") || "";
+          if (cookieSession) {
+            localStorage.setItem(AI_ANNOUNCEMENT_SESSION_KEY, cookieSession);
+          }
+        } catch {
+          // ignore storage access issues
+        }
+        setAiAnnouncementModalOpen(false);
+      }, []);
+      
+
+    const dismissAiAnnouncement = () => {
+        const bannerID = "banner_ai_announcement";
+
+        if (isCloud) {
+            ReactGA.event({
+                category: "AIGeneratedNewWorkflow",
+                action: "dismiss_announcement",
+                label: userdata?.active_org?.id || userdata?.id || "",
+            });
+        }
+
+        handleCloseAiAnnouncement();
+
+        // Open Create Workflow modal (EditWorkflow) and temporarily highlight inputs/buttons
+        try {
+            setModalOpen(true)
+            setIsEditing(false)
+            setNewWorkflowName("")
+            setNewWorkflowDescription("")
+            setDefaultReturnValue("")
+            setEditingWorkflow({})
+            setNewWorkflowTags([])
+            setSelectedUsecases([])
+
+            // Wait a moment for the drawer to mount, then highlight
+            setTimeout(() => {
+                const BORDER = '#4CAF50';
+                const DURATION = 1500;
+
+                const highlightTextField = (inputEl) => {
+                    if (!inputEl) return;
+                    const formControl = inputEl.closest('.MuiFormControl-root') || inputEl.closest('.MuiInputBase-root') || inputEl.parentElement;
+                    const inputRoot = formControl?.querySelector('.MuiOutlinedInput-root') || formControl?.querySelector('.MuiInputBase-root') || formControl;
+                    const notch = formControl?.querySelector('fieldset');
+
+                    const prevBoxShadow = inputRoot?.style?.boxShadow;
+                    const prevBorderColor = notch?.style?.borderColor;
+                    const prevBorderWidth = notch?.style?.borderWidth;
+
+                    if (inputRoot) inputRoot.style.boxShadow = '0 0 0 3px rgba(76,175,80,0.45)';
+                    if (notch) {
+                        notch.style.borderColor = BORDER;
+                        notch.style.borderWidth = '2px';
+                    }
+
+                    setTimeout(() => {
+                        try {
+                            if (inputRoot) inputRoot.style.boxShadow = prevBoxShadow || '';
+                            if (notch) {
+                                notch.style.borderColor = prevBorderColor || '';
+                                notch.style.borderWidth = prevBorderWidth || '';
+                            }
+                        } catch (_) {}
+                    }, DURATION);
+                };
+
+                const highlightButton = (btnEl) => {
+                    if (!btnEl) return;
+                    const prevBoxShadow = btnEl.style.boxShadow;
+                    const prevBorder = btnEl.style.border;
+                    const prevRadius = btnEl.style.borderRadius;
+                    btnEl.style.boxShadow = '0 0 0 3px rgba(76,175,80,0.45)';
+                    btnEl.style.border = '2px solid ' + BORDER;
+                    btnEl.style.borderRadius = '6px';
+                    setTimeout(() => {
+                        try {
+                            btnEl.style.boxShadow = prevBoxShadow || '';
+                            btnEl.style.border = prevBorder || '';
+                            btnEl.style.borderRadius = prevRadius || '';
+                        } catch (_) {}
+                    }, DURATION);
+                };
+
+                const nameEl = document.getElementById('Enter-Workflow-Name');
+                highlightTextField(nameEl);
+
+                const descEl = document.getElementById('Workflow-Description');
+                highlightTextField(descEl);
+
+                const aiBtn = document.getElementById('ai-generate-button');
+                highlightButton(aiBtn);
+            }, 250);
+        } catch (e) {
+            console.debug('Failed to open and highlight Create Workflow modal:', e);
+        }
+        
+        fetch(globalUrl + '/api/v1/users/updateuser', {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({
+                tutorial: bannerID,
+                user_id: userdata.id
+            }),
+            credentials: "include",
+        })
+        .then((response) => {
+            if (response.status !== 200) {
+                console.log("Failed to dismiss AI announcement banner");
+            }
+            return response.json();
+        })
+        .then((responseJson) => {
+            if (responseJson.success) {
+                console.log("AI announcement banner dismissed successfully");
+            }
+        })
+        .catch((error) => {
+            console.log("Error dismissing AI announcement:", error);
+        });
+    };
+
+
+    const findWorkflow = (filters) => {
+        console.log("Using filters: ", filters)
+        if (filters.length === 0) {
+            setFilteredWorkflows(workflows);
+            handleKeysetting(allUsecases, workflows)
+            return;
+        }
+
+        var newWorkflows = [];
+        for (var workflowKey in workflows) {
+            const curWorkflow = workflows[workflowKey];
+
+            var found = [false];
+            if (curWorkflow.tags === undefined || curWorkflow.tags === null) {
+                found = filters.map((filter) =>
+                    curWorkflow.name.toLowerCase().includes(filter)
+                );
+            }
+
+            if (curWorkflow.tags !== undefined && curWorkflow.tags !== null && curWorkflow.tags.length > 0) {
+                // Make them all lowercase
+                curWorkflow.tags = curWorkflow.tags.map((tag) => tag.toLowerCase())
+            }
+
+
+            if (found.every((v) => v !== true)) {
+                found = filters.map((filter) => {
+                    if (filter === undefined || filter === null) {
+                        return false;
+                    }
+
+                    const newfilter = filter.toLowerCase();
+
+                    if (curWorkflow.name.toLowerCase().includes(filter.toLowerCase())) {
+                        return true;
+                    } else if (curWorkflow.tags !== undefined && curWorkflow.tags !== null && curWorkflow.tags.includes(filter.toLowerCase())) {
+                        return true;
+                    } else if (curWorkflow.owner === filter) {
+                        return true;
+                    } else if (curWorkflow.org_id === filter) {
+                        return true;
+                    } else if (curWorkflow.usecase_ids !== undefined && curWorkflow.usecase_ids !== null && curWorkflow.usecase_ids.length > 0) {
+                        // Check if the usecase is the right category
+                        for (var key in usecases) {
+                            if (usecases[key].name.toLowerCase() !== newfilter) {
+                                continue
+                            }
+
+                            for (var subkey in usecases[key].list) {
+                                if (curWorkflow.usecase_ids.includes(usecases[key].list[subkey].name)) {
+                                    return true
+                                }
+                            }
+                        }
+                    } else if (
+                        curWorkflow.actions !== null &&
+                        curWorkflow.actions !== undefined
+                    ) {
+                        for (var key in curWorkflow.actions) {
+                            const action = curWorkflow.actions[key];
+
+                            if (
+                                action.app_name.toLowerCase() === newfilter ||
+                                action.app_name.toLowerCase().includes(newfilter)
+                            ) {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                });
+            }
+
+            if (found.every((v) => v === true)) {
+                newWorkflows.push(curWorkflow);
+                continue;
+            }
+        }
+
+        console.log("Changing workflow filter, and finding new usecase mappings!")
+        if (newWorkflows.length !== workflows.length) {
+            handleKeysetting(allUsecases, newWorkflows)
+
+            setFilteredWorkflows(newWorkflows);
+        }
+    };
+
+    const getApps = () => {
+        try {
+            const appstorage = localStorage.getItem("apps")
+            const privateapps = JSON.parse(appstorage)
+            setApps(privateapps)
+        } catch (e) {
+            //console.log("Failed to get apps from localstorage: ", e)
+        }
+
+        fetch(`${globalUrl}/api/v1/apps`, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for apps :O!");
+                }
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                setApps(responseJson);
+            })
+            .catch((error) => {
+                console.log("App loading error: " + error.toString());
+            });
+    }
+
+    const addFilter = (data) => {
+        if (data === null || data === undefined) {
+            console.log("No filter data")
+            return;
+        }
+
+        if (data.includes("<") && data.includes(">")) {
+            console.log("Filter includes < or >")
+            return;
+        }
+
+        if (filters.includes(data) || filters.includes(data.toLowerCase())) {
+            console.log("Filter already has the data")
+            return;
+        }
+
+        filters.push(data.toLowerCase());
+        setFilters(filters);
+
+        findWorkflow(filters);
+    };
+
+    const removeFilter = (index) => {
+        var newfilters = filters;
+
+        if (index < 0) {
+            console.log("Can't handle index (remove): ", index);
+            return;
+        }
+
+        newfilters.splice(index, 1);
+
+        if (newfilters.length === 0) {
+            newfilters = [];
+            setFilters(newfilters);
+        } else {
+            setFilters(newfilters);
+        }
+
+        findWorkflow(newfilters);
+    };
+
+    const exportVerifyModal = exportModalOpen ? (
+        <Dialog
+            open={exportModalOpen}
+            onClose={() => {
+                setExportModalOpen(false);
+                setSelectedWorkflow({});
+            }}
+            PaperProps={{
+                style: {
+                    backgroundColor: theme.palette.surfaceColor,
+                    color: "white",
+                    minWidth: 500,
+                    padding: 30,
+                },
+            }}
+        >
+            <DialogTitle style={{ marginBottom: 0 }}>
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.9)" }}>
+                    Want to auto-sanitize this workflow before exporting?
+                </div>
+            </DialogTitle>
+            <DialogContent
+                style={{ color: "rgba(255,255,255,0.65)", textAlign: "center" }}
+            >
+                <Typography variant="body1" style={{}}>
+                    This will make potentially sensitive fields such as username,
+                    password, url etc. empty
+                </Typography>
+                <Button
+                    variant="contained"
+                    style={{ marginTop: 20 }}
+                    onClick={() => {
+                        setExportModalOpen(false);
+                        exportWorkflow(exportData, true);
+                        setExportData("");
+                    }}
+                    color="primary"
+                >
+                    Yes
+                </Button>
+                <Button
+                    style={{ marginTop: 20 }}
+                    onClick={() => {
+                        setExportModalOpen(false);
+                        exportWorkflow(exportData, false);
+                        setExportData("");
+                    }}
+                    color="primary"
+                >
+                    No
+                </Button>
+            </DialogContent>
+        </Dialog>
+    ) : null;
+
+    const publishModal = publishModalOpen ? (
+        <Dialog
+            open={publishModalOpen}
+            onClose={() => {
+                setPublishModalOpen(false);
+                setSelectedWorkflow({});
+            }}
+            PaperProps={{
+                style: {
+                    backgroundColor: theme.palette.surfaceColor,
+                    color: "white",
+                    minWidth: 500,
+                    padding: 50,
+                },
+            }}
+        >
+            <DialogTitle style={{ marginBottom: 0 }}>
+                <div style={{ textAlign: "center", color: "rgba(255,255,255,0.9)" }}>
+                    Are you sure you want to PUBLISH this workflow?
+                </div>
+            </DialogTitle>
+            <DialogContent
+                style={{ color: "rgba(255,255,255,0.65)", textAlign: "center" }}
+            >
+                <div>
+                    <Typography variant="body1" style={{ marginBottom: 20 }}>
+                        Before publishing, we will sanitize all inputs, remove references to
+                        you, randomize ID's and remove your authentication.
+                    </Typography>
+                    <Typography variant="body1" style={{ marginBottom: 20 }}>
+                        The published workflow is yours, and you can always change your public workflows after they are released.
+                    </Typography>
+                </div>
+                <Button
+                    variant="contained"
+                    style={{}}
+                    onClick={() => {
+                        publishWorkflow(selectedWorkflow);
+                        setPublishModalOpen(false);
+                    }}
+                    color="primary"
+                >
+                    Yes
+                </Button>
+                <Button
+                    style={{}}
+                    onClick={() => {
+                        setPublishModalOpen(false);
+                    }}
+                    color="primary"
+                >
+                    No
+                </Button>
+            </DialogContent>
+        </Dialog>
+    ) : null;
+
+    const aiAnnouncementModal = aiAnnouncementModalOpen ? (
+        <Dialog
+        open={aiAnnouncementModalOpen}
+        onClose={handleCloseAiAnnouncement}
+        TransitionComponent={Zoom}
+        TransitionProps={{ timeout: 300 }}
+        PaperProps={{
+          style: {
+            background: theme.palette.DialogStyle.backgroundColor,
+            minWidth: isMobile ? "90vw" : 780,
+            maxWidth: isMobile ? "90vw" : 860,
+            borderRadius: 8,
+            overflow: "hidden",
+            transformOrigin: "center",
+          },
+        }}
+      >
+        <DialogTitle style={{ position: "relative", padding: 0, margin: 0 }}>
+          <IconButton
+            style={{
+              position: "absolute",
+              top: 10,
+              right: 10,
+            }}
+            onClick={
+                () => {
+                    if (isCloud) {
+                        ReactGA.event({
+                            category: "AIGeneratedNewWorkflow",
+                            action: "close_announcement",
+                            label: userdata?.active_org?.id || userdata?.id || "",
+                        });
+                    }
+                    handleCloseAiAnnouncement();
+                }
+            }
+            aria-label="Close"
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          sx={{
+            height: "380px",
+            overflow: "hidden",
+          }}
+        >
+          {/* Main two-column layout */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              gap: { xs: 3, sm: 4 },
+              alignItems: "stretch",
+              p: { xs: 2.5, sm: 3 },
+              mt: 1,
+            }}
+          >
+            {/* Left: steps image (38%) */}
+            <Box
+              sx={{
+                flex: { xs: "0 0 auto", sm: "0 0 38%" },
+                maxWidth: { xs: "100%", sm: "38%" },
+              }}
+            >
+              <Box
+                component="img"
+                src="/aiGenerateWorkflowSteps.svg"
+                alt="AI workflow generation steps"
+                sx={{
+                  width: "100%",
+                  height: {xs: "auto", md: "80%"},
+                  marginLeft: -2,
+                  objectFit: "contain",
+                  borderRadius: "6px",
+                }}
+              />
+            </Box>
+
+            {/* Right: content (62%) */}
+            <Box
+              sx={{
+                flex: { xs: "1 1 auto", sm: "0 0 62%" },
+                maxWidth: { xs: "100%", sm: "62%" },
+                display: "flex",
+                flexDirection: "column",
+                gap: { xs: 1.5, sm: 2 },
+                py: 1.2,
+              }}
+            >
+              {/* NEW badge */}
+              <Box
+                sx={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 1,
+                  py: 0.5,
+                  px: 1.25,
+                  border: "1px solid #2bc07e",
+                  color: "#f85a3e",
+                  background: "transparent",
+                  borderRadius: 999,
+                  width: "fit-content",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  mb: { xs: 0.5, sm: 1 },
+                }}
+              >
+                <AutoAwesomeIcon sx={{ fontSize: 16, color: "#2bc07e" }} />
+                <Box
+                  component="span"
+                  sx={{
+                    color: "#2bc07e",
+                  }}
+                >
+                  NEW
+                </Box>
+              </Box>
+
+              {/* Title */}
+              <Typography
+                sx={{
+                  fontWeight: 700,
+                  lineHeight: 1.25,
+                  fontFamily: theme.typography.fontFamily,
+                  fontSize: { xs: "1.25rem", sm: "1.5rem" },
+                }}
+              >
+                Introducing AI Workflow Generation
+              </Typography>
+
+              {/* Body text */}
+              <Typography
+                variant="body2"
+                sx={{
+                  lineHeight: 1.7,
+                  fontFamily: theme.typography.fontFamily,
+                }}
+              >
+                Simply describe what you want your workflow to do, and our AI
+                will automatically generate the workflow for you.
+              </Typography>
+
+              <Typography
+                variant="body2"
+                sx={{ fontFamily: theme.typography.fontFamily }}
+              >
+                <strong>Quick start:</strong> Create Workflow → Describe → AI
+                Generate → Done.
+              </Typography>
+
+              <Typography
+                variant="body2"
+                sx={{ fontFamily: theme.typography.fontFamily }}
+              >
+                For self-hosted setups, see the{" "}
+                <Box
+                  component="a"
+                  href="/docs/AI#self-hosting-models"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  sx={{ color: "#ff8544", textDecoration: "underline" }}
+                >
+                  setup docs
+                </Box>
+              </Typography>
+
+              {/* CTA button */}
+              <Box sx={{ display: "flex", mt: { xs: 2, sm: 2.5 } }}>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={dismissAiAnnouncement}
+                  disableElevation
+                  sx={{
+                    py: 1.1,
+                    px: 2.7,
+                    textTransform: "none",
+                    mt: 3,
+                    borderRadius: "8px",
+                    fontSize: 14,
+                    width: { xs: "100%", sm: "auto" },
+                  }}
+                >
+                  Let's try it out
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+      </Dialog>
+    ) : null;
+
+    const deleteModal = deleteModalOpen ? (
+        <Dialog
+            open={deleteModalOpen}
+            onClose={() => {
+                setDeleteModalOpen(false);
+                setSelectedWorkflowId("");
+            }}
+            PaperProps={{
+                sx: {
+                    borderRadius: theme?.palette?.DialogStyle?.borderRadius,
+                    border: theme?.palette?.DialogStyle?.border,
+                    minWidth: 440,
+                    fontFamily: theme?.typography?.fontFamily,
+                    backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    zIndex: 1000,
+                    '& .MuiDialogContent-root': {
+                    	backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    },
+                    '& .MuiDialogTitle-root': {
+                    	backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    },
+                }
+            }}
+        >
+            <DialogTitle style={{padding: 50, }}>
+                <div style={{ textAlign: "center", color: theme.palette.DialogStyle?.color }}>
+                    Are you sure you want to delete {selectedWorkflowId.length > 0 ? filteredWorkflows.find((w) => w.id === selectedWorkflowId)?.name : `${selectedWorkflowIndexes.length} workflow${selectedWorkflowIndexes.length === 1 ? '' : 's'}`}? <div />
+
+                    Other workflows relying on {selectedWorkflowIndexes.length > 0 ? "them" : "it"} one will stop working.
+                </div>
+            </DialogTitle>
+            <DialogContent
+                style={{ color: theme.palette.DialogStyle.color, textAlign: "center" }}
+            >
+                <Button
+                    style={{}}
+                    onClick={() => {
+                        if (selectedWorkflowId) {
+                            deleteWorkflow(selectedWorkflowId)
+
+                        } else if (selectedWorkflowIndexes.length > 0) {
+                            // Do backwards so it doesn't change 
+                            toast("Starting deletion of workflows. This might take a while.")
+                            for (var i = selectedWorkflowIndexes.length - 1; i >= 0; i--) {
+                                const workflow = filteredWorkflows[selectedWorkflowIndexes[i] - 1]
+                                if (workflow !== undefined && workflow !== null && workflow.id !== undefined && workflow.id !== null) {
+                                    deleteWorkflow(workflow.id, true)
+                                }
+                            }
+
+							setTimeout(() => {
+								getAvailableWorkflows()
+							}, 5000)
+                            setSelectedWorkflowIndexes([]);
+                        }
+
+                        setDeleteModalOpen(false)
+                    }}
+                    color="primary"
+                >
+                    Yes
+                </Button>
+                <Button
+                    variant="outlined"
+                    style={{}}
+                    onClick={() => {
+                        setDeleteModalOpen(false);
+                    }}
+                    color="primary"
+                >
+                    No
+                </Button>
+            </DialogContent>
+        </Dialog>
+    ) : null;
+
+    const uploadFile = (e) => {
+        const isDropzone =
+            e.dataTransfer === undefined ? false : e.dataTransfer.files.length > 0;
+        const files = isDropzone ? e.dataTransfer.files : e.target.files;
+
+        const reader = new FileReader();
+        toast("Starting upload. Please wait while we validate the workflows");
+
+        try {
+            reader.addEventListener("load", (e) => {
+                var data = e.target.result;
+                setIsDropzone(false);
+                try {
+                    data = JSON.parse(reader.result);
+                } catch (e) {
+                    toast("Invalid JSON: " + e);
+                    return;
+                }
+
+                // Initialize the workflow itself
+                setNewWorkflow(
+                    data.name,
+                    data.description,
+                    data.tags,
+                    data.default_return_value,
+                    {},
+                    false,
+                    [],
+                    "",
+                    data.status,
+                )
+				.then((response) => {
+					if (response !== undefined) {
+						// SET THE FULL THING
+						data.id = response.id;
+
+						// Actually create it
+						setNewWorkflow(
+							data.name,
+							data.description,
+							data.tags,
+							data.default_return_value,
+							data,
+							false,
+							[],
+							"",
+							data.status
+						).then((response) => {
+							if (response !== undefined) {
+								toast.success(`Successfully imported ${data.name}`);
+							}
+						});
+					}
+				})
+				.catch((error) => {
+					toast("Import error: " + error.toString());
+				});
+            });
+        } catch (e) {
+            console.log("Error in dropzone: ", e);
+        }
+
+        reader.readAsText(files[0]);
+    };
+
+    useEffect(() => {
+        if (isDropzone) {
+            setIsDropzone(false);
+        }
+
+    }, [isDropzone]);
+
+
+
+    const getFramework = () => {
+        fetch(globalUrl + "/api/v1/apps/frameworkConfiguration", {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for framework!");
+                }
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                if (responseJson.success === false) {
+                    setAppFramework({})
+                    if (responseJson.reason !== undefined) {
+                        //toast("Failed loading: " + responseJson.reason)
+                    } else {
+                        //toast("Failed to load framework for your org.")
+                    }
+                } else {
+                    setAppFramework(responseJson)
+                }
+            })
+            .catch((error) => {
+                console.log("err in framework: ", error.toString());
+            })
+    }
+
+
+    useEffect(() => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const paramType = queryParams.get("type");
+    
+        if (paramType === "sso_login") {
+            localStorage.removeItem("workflows");
+            queryParams.delete("type");
+            const newUrl = window.location.pathname +  (queryParams.toString() ? `?${queryParams.toString()}` : '');
+    
+            window.history.replaceState({}, '', newUrl);
+         window.location.reload();
+        }
+    }, []);
+
+	useEffect(() => {
+		if (workflows?.length === 0) {
+			return
+		}
+
+		if (workflowTimelines?.length > 0) {
+			return
+		}
+
+		//if (isLoggedIn !== true) {
+		//	return
+		//}
+		  
+		const results = Promise.all(
+			workflows.slice(0,16).map((workflow, index) => {
+
+				return fetch(`${globalUrl}/api/v2/workflows/${workflow.id}/executions`, {
+					method: "GET",
+					headers: {
+						"Content-Type": "application/json",
+						Accept: "application/json",
+					},
+					credentials: "include",
+				}).then((response) => response.json())
+			})
+	    )
+
+		results.then((res) => {
+			var newarray = []
+			for (var resKey in res) {
+				const result = res[resKey]
+				if (result?.timeline === undefined || result?.timeline === null) {
+					continue
+				}
+
+				newarray.push({
+					"id": result.id,
+					"timeline": result.timeline,
+				})
+			}
+
+			setWorkflowTimelines(newarray)
+		})
+
+
+	}, [workflows])
+    
+    const getAvailableWorkflows = (amount) => {
+        var storageWorkflows = []
+        setIsLoadingWorkflow(true)
+        try {
+            const storagewf = localStorage.getItem("workflows")
+            storageWorkflows = JSON.parse(storagewf)
+            if (storageWorkflows === null || storageWorkflows === undefined || storageWorkflows.length === 0) {
+                storageWorkflows = []
+            } else {
+                setWorkflows(storageWorkflows)
+                setFilteredWorkflows(storageWorkflows)
+                fetchUsecases(storageWorkflows)
+                setWorkflowDone(true)
+            }
+        } catch (e) {
+            //console.log("Failed to get workflows from localstorage: ", e)
+        }
+
+        var url = `${globalUrl}/api/v1/workflows`
+        if (amount !== undefined && amount !== null) {
+            url += `?top=${amount}`
+        }
+
+        fetch(url, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            credentials: "include",
+        })
+            .then((response) => {
+    			setIsLoadingWorkflow(false)
+                if (response.status !== 200) {
+                    console.log("Status not 200 for workflows :O!: ", response.status);
+
+                    //if (isCloud) {
+                    //  navigate("/search?tab=workflows")
+                    //}
+
+                    toast("Failed getting workflows. Are you logged in?");
+                    return
+                }
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                if (responseJson !== undefined && responseJson !== null) {
+					if (responseJson.success === false) {
+					} else if (responseJson.length === 0) {
+                        // When there are no workflows, we can set the loading to false
+                        setIsLoadingWorkflow(false)
+						if (currTab !== 2) {
+							toast.info("No workflows found in this org. Feel free to look into our public workflows!" , {
+								timeout: 7500,
+							})
+
+							setCurrTab(2)
+						}
+
+						localStorage.setItem("workflows", "[]")
+						setWorkflows([])
+						setFilteredWorkflows([])
+					}
+
+                    var newarray = []
+					var backupWf = []
+					var backgroundWf = []
+                    for (var wfkey in responseJson) {
+                        const wf = responseJson[wfkey]
+                        if (wf?.public === true || wf?.hidden === true) {
+                            continue
+                        }
+
+						if (wf?.background_processing === true) {
+							backgroundWf.push(wf)
+							continue
+						}
+
+						if (wf?.backup_config?.onprem_backup === true) {
+							backupWf.push(wf)
+							continue
+						}
+
+                        newarray.push(wf)
+                    }
+
+					if (backgroundWf.length > 0) {
+						setBackgroundWorkflows(backgroundWf)
+					}
+
+					if (backupWf.length > 0) {
+						setBackupWorkflows(backupWf)
+					}
+
+                    var setProdFilter = false
+
+                    var actionnamelist = [];
+                    var parsedactionlist = [];
+                    for (var key in newarray) {
+                        const workflow = newarray[key]
+                        //if (workflow.status === "production") {
+                        //	setProdFilter = true 
+                        //}
+
+                        for (var actionkey in newarray[key].actions) {
+                            const action = newarray[key].actions[actionkey];
+                            //console.log("Action: ", action)
+                            if (actionnamelist.includes(action.app_name)) {
+                                continue;
+                            }
+
+                            actionnamelist.push(action.app_name);
+                            parsedactionlist.push(action);
+                        }
+                    }
+
+                    try {
+                        localStorage.setItem("workflows", JSON.stringify(newarray))
+                    } catch (e) {
+                        console.log("Failed to set workflows in localstorage: ", e)
+                    }
+
+                    // Ensures the zooming happens only once per load
+                    setTimeout(() => {
+                        fetchUsecases(newarray)
+
+                        setActionImageList(parsedactionlist);
+                        if (setProdFilter === true) {
+                            const newWorkflows = newarray.filter(workflow => workflow.status === "production")
+                            if (newWorkflows !== undefined && newWorkflows !== null) {
+                                setFilteredWorkflows(newWorkflows);
+                            } else {
+                                setFilteredWorkflows(newarray);
+                            }
+
+                            setFilters(["status:production"]);
+                        } else {
+                            setFilteredWorkflows(newarray)
+                        }
+
+                        setFirstLoad(false)
+                    }, 250)
+
+                    /*
+                    setTimeout(() => {
+                        var timeout = 0
+                        for (var key in newarray) {
+                            const wf = newarray[key]
+                            if (wf.actions === undefined || wf.actions === null || wf.actions.length === 0) {
+                                setTimeout(() => {
+                                    sideloadWorkflow(wf.id, false)
+                                }, timeout)
+                                	
+                                timeout += 1000 
+                            }
+        
+                        }
+                    }, 1000)
+                    */
+
+                } else {
+                    if (isLoggedIn) {
+                        toast("An error occurred while loading workflows");
+                    }
+
+                    return;
+                }
+            })
+            .catch((error) => {
+    			setIsLoadingWorkflow(false)
+                toast(error.toString());
+            });
+    }
+
+    const findMatches = (category, workflows) => {
+        category.matches = []
+        for (var subcategorykey in category.list) {
+            var subcategory = category.list[subcategorykey]
+            subcategory.matches = []
+
+            for (var workflowkey in workflows) {
+                const workflow = workflows[workflowkey]
+
+                if (workflow.usecase_ids !== undefined && workflow.usecase_ids !== null) {
+                    for (var usecasekey in workflow.usecase_ids) {
+
+                        if (workflow.usecase_ids[usecasekey].toLowerCase() === subcategory.name.toLowerCase()) {
+                            //console.log("Got match: ", workflow.usecase_ids[usecasekey])
+
+                            category.matches.push({
+                                "workflow": workflow.id,
+                                "category": subcategory.name,
+                            })
+                            subcategory.matches.push(workflow.id)
+                            break
+                        }
+                    }
+                }
+
+                if (subcategory.matches.length > 0) {
+                    break
+                }
+            }
+        }
+
+        return category
+    }
+
+    const handleKeysetting = (categorydata, workflows) => {
+        if (workflows !== undefined && workflows !== null) {
+            var newcategories = []
+            for (var key in categorydata) {
+                var category = categorydata[key]
+                // Check if category is bool
+                if (typeof category === "boolean") {
+                    continue
+                }
+
+                category = findMatches(category, workflows)
+                newcategories.push(category)
+            }
+
+            setUsecases(newcategories)
+        } else {
+            setUsecases(categorydata)
+        }
+    }
+
+    const fetchUsecases = (workflows) => {
+        fetch(globalUrl + "/api/v1/workflows/usecases", {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for usecases");
+                }
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                setWorkflows(workflows);
+                setWorkflowDone(true);
+
+                if (responseJson.success !== false) {
+                    setAllUsecases(responseJson);
+                    handleKeysetting(responseJson, workflows)
+                }
+            })
+            .catch((error) => {
+                //toast("ERROR: " + error.toString());
+                console.log("ERROR: " + error.toString());
+                setWorkflows(workflows);
+                setWorkflowDone(true);
+            });
+    };
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    useEffect(() => {
+        if (workflows.length <= 0) {
+            const tmpView = localStorage.getItem("view");
+            if (tmpView !== undefined && tmpView !== null) {
+                setView(tmpView);
+            }
+
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            const params = Object.fromEntries(urlSearchParams.entries());
+            const foundTab = params["top"];
+            if (foundTab !== null && foundTab !== undefined) {
+                // Check if it's a number
+                if (isNaN(foundTab)) {
+                    getAvailableWorkflows()
+                } else {
+                    getAvailableWorkflows(foundTab)
+                }
+            } else {
+                getAvailableWorkflows()
+            }
+
+            getApps()
+            getFramework()
+        }
+    }, [])
+
+    const viewStyle = {
+        color: "#ffffff",
+        width: "100%",
+        display: "flex",
+        minWidth: isMobile ? "100%" : 1024,
+        maxWidth: isMobile ? "100%" : 1024,
+        margin: drawerWidth === 0 ? "auto" : `auto ${drawerWidth + 100} auto auto`,
+        paddingBottom: 200,
+    };
+
+    const emptyWorkflowStyle = {
+        paddingTop: "200px",
+        width: 1024,
+        margin: "auto",
+    };
+
+    const boxStyle = {
+        padding: "20px 20px 20px 20px",
+        width: "100%",
+        height: "250px",
+        color: "white",
+        backgroundColor: theme.palette.surfaceColor,
+        display: "flex",
+        flexDirection: "column",
+    };
+
+    //flexDirection: !isMobile ? "column" : "row",
+    const paperAppContainer = {
+        //display: "flex",
+        //flexWrap: "wrap",
+        //alignContent: "space-between",
+    };
+
+    const paperAppStyle = {
+        minHeight: 146,
+        overflow: "hidden",
+        width: "100%",
+        color: "white",
+        fontFamily: theme.typography?.fontFamily,
+        boxSizing: "border-box",
+        position: "relative",
+        borderRadius: "8px",
+        // backgroundColor: "#212121",
+        padding: "15px 15px 0px 30px",
+    };
+
+    const gridContainer = {
+        height: "auto",
+        color: "white",
+        margin: "10px",
+        backgroundColor: "#212121",
+        position: "relative",
+    };
+
+    const workflowActionStyle = {
+        display: "flex",
+        width: 160,
+        height: 44,
+		marginTop: 5, 
+        justifyContent: "space-between",
+        fontFamily: theme.typography?.fontFamily,
+		textAlign: "center", 
+    };
+
+    const exportAllWorkflows = (allWorkflows) => {
+        for (var i = 0; i < allWorkflows.length; i++) {
+            const wf = allWorkflows[i]
+
+            if (wf === undefined || wf.id === undefined) {
+                continue
+            }
+
+            console.log("Exporting workflow: ", wf)
+            setTimeout(() => {
+                exportWorkflow(JSON.parse(JSON.stringify(wf)), false)
+            }, i * 100);
+        }
+
+        toast(`Exporting and keeping original for all ${allWorkflows.length} workflows`);
+    }
+
+    const deduplicateIds = (data, skip_sanitize) => {
+        if (data.triggers !== null && data.triggers !== undefined) {
+            for (var key in data.triggers) {
+                const trigger = data.triggers[key];
+                if (skip_sanitize !== true) {
+                    if (trigger.app_name === "Shuffle Workflow") {
+                        if (trigger.parameters !== null && trigger.parameters !== undefined) {
+                            if (trigger.parameters.length > 2) {
+                                trigger.parameters[2].value = "";
+                            }
+                        }
+                    }
+                }
+
+                if (trigger.status === "running") {
+                    trigger.status = "stopped";
+                }
+
+                const newId = uuidv4();
+                if (trigger.trigger_type === "WEBHOOK") {
+                    if (
+                        trigger.parameters !== undefined &&
+                        trigger.parameters !== null &&
+                        trigger.parameters.length === 2
+                    ) {
+                        trigger.parameters[0].value =
+                            referenceUrl + "webhook_" + trigger.id;
+                        trigger.parameters[1].value = "webhook_" + trigger.id;
+                    } else if (
+                        trigger.parameters !== undefined &&
+                        trigger.parameters !== null &&
+                        trigger.parameters.length === 3
+                    ) {
+                        trigger.parameters[0].value =
+                            referenceUrl + "webhook_" + trigger.id;
+                        trigger.parameters[1].value = "webhook_" + trigger.id;
+                        // FIXME: Add auth here?
+                    } else {
+                        toast("Something is wrong with the webhook in the copy");
+                    }
+                }
+
+                for (var branchkey in data.branches) {
+                    const branch = data.branches[branchkey];
+                    if (branch.source_id === trigger.id) {
+                        branch.source_id = newId;
+                    }
+
+                    if (branch.destination_id === trigger.id) {
+                        branch.destination_id = newId;
+                    }
+                }
+
+                trigger.environment = isCloud ? "cloud" : "Shuffle";
+                trigger.id = newId;
+            }
+        }
+
+        if (data.actions !== null && data.actions !== undefined && skip_sanitize !== true) {
+            for (key in data.actions) {
+                data.actions[key].authentication_id = "";
+
+                for (var subkey in data.actions[key].parameters) {
+                    const param = data.actions[key].parameters[subkey];
+
+                    // Removed October 10th, 2022 as key usually isn't 
+                    // containing anything secret, but rather necessary configurations.
+                    // param.name.includes("key") ||
+                    //
+                    if (
+                        param.name.includes("user") ||
+                        param.name.includes("pass") ||
+                        param.name.includes("api") ||
+                        param.name.includes("auth") ||
+                        param.name.includes("secret") ||
+                        param.name.includes("domain") ||
+                        param.name.includes("url") ||
+                        param.name.includes("mail")
+                    ) {
+                        // FIXME: This may be a vuln if api-keys are generated that start with $
+                        if (param.value.startsWith("$")) {
+                            console.log("Skipping field, as it's referencing a variable");
+                        } else {
+                            param.value = "";
+                            param.is_valid = false;
+                        }
+                    }
+                }
+
+                const newId = uuidv4();
+                for (branchkey in data.branches) {
+                    const branch = data.branches[branchkey];
+                    if (branch.source_id === data.actions[key].id) {
+                        branch.source_id = newId;
+                    }
+
+                    if (branch.destination_id === data.actions[key].id) {
+                        branch.destination_id = newId;
+                    }
+                }
+
+                if (data.actions[key].id === data.start) {
+                    data.start = newId;
+                }
+
+                data.actions[key].environment = "";
+                data.actions[key].id = newId;
+            }
+        }
+
+        if (data.workflow_variables !== null && data.workflow_variables !== undefined && skip_sanitize !== true) {
+            for (key in data.workflow_variables) {
+                const param = data.workflow_variables[key];
+                //param.name.includes("key") ||
+
+                if (
+                    param.name.includes("user") ||
+                    param.name.includes("pass") ||
+                    param.name.includes("api") ||
+                    param.name.includes("auth") ||
+                    param.name.includes("secret") ||
+                    param.name.includes("email")
+                ) {
+                    param.value = "";
+                    param.is_valid = false;
+                }
+            }
+        }
+
+        return data;
+    };
+
+    const sanitizeWorkflow = (data) => {
+        data = JSON.parse(JSON.stringify(data));
+        console.log("Sanitize start: ", data);
+        data = deduplicateIds(data);
+
+        console.log("Sanitize end: ", data);
+
+        return data;
+    };
+
+    const exportWorkflow = (data, sanitize) => {
+        try {
+            data = JSON.parse(JSON.stringify(data));
+        } catch (e) {
+            console.log("Failed to parse JSON: ", e);
+        }
+
+        let exportFileDefaultName = data.name + ".json";
+
+        data["owner"] = "";
+        data["updated_by"] = "";
+        data["org"] = [];
+        data["org_id"] = "";
+        data["execution_org"] = {};
+        data["created"] = 0
+        data["due_date"] = 0
+        data["edited"] = 0
+
+        data["validation"] = {};
+        data["suborg_distribution"] = []
+        data["parentorg_workflow"] = ""
+
+        // These are backwards.. True = saved before. Very confuse.
+        data["previously_saved"] = false;
+        data["first_save"] = false;
+
+        if (sanitize === true) {
+            data = sanitizeWorkflow(data);
+
+            if (data.subflows !== null && data.subflows !== undefined) {
+                toast(
+                    "Not exporting with subflows when sanitizing. Please manually export them."
+                )
+
+                data.subflows = []
+            }
+
+            //	for (var key in data.subflows) {
+            //		if (data.sublof
+            //	}
+            //}
+        }
+
+        // Add correct ID's for triggers
+        // Add mag
+
+        data.status = "test"
+        let dataStr = JSON.stringify(data);
+        let dataUri =
+            "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+        let linkElement = document.createElement("a");
+        linkElement.setAttribute("href", dataUri);
+        linkElement.setAttribute("download", exportFileDefaultName);
+        linkElement.click();
+    };
+
+    const publishWorkflow = (data) => {
+        data = JSON.parse(JSON.stringify(data));
+        data = sanitizeWorkflow(data);
+        toast("Sanitizing and publishing " + data.name);
+    
+        // This ALWAYS talks to Shuffle cloud
+        fetch(globalUrl + "/api/v1/workflows/" + data.id + "/publish" , {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(data),
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for workflow publish :O!");
+                } else {
+                    if (isCloud) {
+                        toast("Successfully published workflow");
+                    } else {
+                        toast(
+                            "Successfully published workflow to https://shuffler.io"
+                        );
+                    }
+                }
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                if (responseJson.reason !== undefined) {
+                    toast("Failed publishing: ", responseJson.reason);
+                }
+
+                getAvailableWorkflows();
+            })
+            .catch((error) => {
+                toast("Failed publishing: is the workflow valid? Remember to save the workflow first.")
+                console.log(error.toString());
+            });
+    };
+
+    const duplicateWorkflow = (data) => {
+        //data = JSON.parse(JSON.stringify(data));
+        toast("Copying workflow '" + data.name + "'. The new workflow will load in and be highlighted.");
+        //data.id = "";
+        //data.name = data.name + "_copy";
+        //data = deduplicateIds(data, true);
+
+        const duplicateData = {
+            name: data.name + "_copy",
+        }
+
+        fetch(`${globalUrl}/api/v1/workflows/${data.id}/duplicate`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(duplicateData),
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for workflows :O!");
+                    return;
+                }
+                return response.json();
+            })
+            .then((responseJson) => {
+                if (responseJson.success === false) {
+                    if (responseJson.reason !== undefined) {
+                        toast("Failed copying workflow: " + responseJson.reason)
+                    } else {
+                        toast("Failed copying workflow")
+                    }
+
+                    return
+                }
+
+                if (responseJson.id !== undefined) {
+                    setHighlightIds([responseJson.id])
+                }
+                setTimeout(() => {
+                    getAvailableWorkflows();
+                }, 1000);
+            })
+            .catch((error) => {
+                toast(error.toString());
+            })
+    }
+
+    const setEditing = (data) => {
+        ReactDOM.unstable_batchedUpdates(() => {
+            setIsEditing(true)
+            setModalOpen(true);
+            setNewWorkflowName(data.name);
+            setNewWorkflowDescription(data.description);
+            setDefaultReturnValue(data.default_return_value);
+            if (data.tags !== undefined && data.tags !== null) {
+                setNewWorkflowTags(JSON.parse(JSON.stringify(data.tags)));
+            }
+
+            if (data.usecase_ids !== undefined && data.usecase_ids !== null && data.usecase_ids.length > 0) {
+                setSelectedUsecases(data.usecase_ids)
+            }
+
+            setEditingWorkflow(JSON.parse(JSON.stringify(data)))
+        })
+    }
+
+    const exportSingleWorkflow = (data, setOpen) => {
+        setExportModalOpen(true)
+
+        if (data.triggers !== null && data.triggers !== undefined) {
+            var newSubflows = [];
+            for (var key in data.triggers) {
+                const trigger = data.triggers[key];
+
+                if (
+                    trigger.parameters !== null &&
+                    trigger.parameters !== undefined
+                ) {
+                    for (var subkey in trigger.parameters) {
+                        const param = trigger.parameters[subkey];
+                        if (
+                            param.name === "workflow" &&
+                            param.value !== data.id &&
+                            !newSubflows.includes(param.value)
+                        ) {
+                            newSubflows.push(param.value);
+                        }
+                    }
+                }
+            }
+
+            var parsedworkflows = [];
+            for (var key in newSubflows) {
+				if (key === data.id) {
+					continue
+				}
+
+                const foundWorkflow = workflows.find(
+                    (workflow) => workflow.id === newSubflows[key]
+                );
+                if (foundWorkflow !== undefined && foundWorkflow !== null) {
+                    parsedworkflows.push(foundWorkflow);
+                }
+            }
+
+            if (parsedworkflows.length > 0) {
+                console.log(
+                    "Appending subflows during export: ",
+                    parsedworkflows.length
+                );
+                data.subflows = parsedworkflows;
+            }
+        }
+
+        setExportData(data)
+        setOpen(false)
+    }
+
+    const sideloadWorkflow = (id, action, setOpen) => {
+
+        const storagewf = localStorage.getItem("workflows")
+        const storageWorkflows = JSON.parse(storagewf)
+        if (storageWorkflows === null || storageWorkflows === undefined || storageWorkflows.length === 0) {
+        } else {
+            for (var i = 0; i < storageWorkflows.length; i++) {
+                if (storageWorkflows[i].id === id) {
+                    if (storageWorkflows[i].image !== "" && storageWorkflows[i].image !== undefined && storageWorkflows[i].image !== null) {
+
+                        if (action === undefined || action === null || action === "") {
+                            console.log("RETURNING")
+                            return
+                        }
+                    }
+                }
+            }
+        }
+
+        fetch(globalUrl + "/api/v1/workflows/" + id, {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                }
+
+                return response.json()
+            })
+            .then((responseJson) => {
+                if (responseJson.success !== false && responseJson.id !== undefined) {
+                    if (action === "edit") {
+                        setEditing(responseJson)
+                    } else if (action === "publish") {
+                        setPublishModalOpen(true)
+                        setSelectedWorkflow(responseJson)
+                    } else if (action === "export") {
+                        exportSingleWorkflow(responseJson, setOpen)
+                    }
+
+                }
+
+                for (var i = 0; i < storageWorkflows.length; i++) {
+                    if (storageWorkflows[i].id === id) {
+                        storageWorkflows[i] = responseJson
+                        localStorage.setItem("workflows", JSON.stringify(storageWorkflows))
+                        break
+                    }
+                }
+
+                //setWorkflows(storageWorkflows)
+                setFilteredWorkflows(storageWorkflows)
+                //setUpdate(Math.random())
+            })
+            .catch((error) => {
+                console.log(error.toString())
+            })
+    }
+
+    const deleteWorkflow = (id, bulk) => {
+        fetch(globalUrl + "/api/v1/workflows/" + id, {
+            method: "DELETE",
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for setting workflows :O!");
+		  
+					if (bulk !== true) {
+                    	toast("Failed deleting workflow. Do you have access?");
+					}
+                } else {
+                    if (bulk !== true) {
+                        toast.success(`Deleted workflow ${id}. Child Workflows in Suborgs were also removed.`)
+                    }
+                }
+
+                return response.json();
+            })
+            .then(() => {
+                if (bulk !== true) {
+                    setTimeout(() => {
+                        getAvailableWorkflows();
+                    }, 1000);
+                }
+            })
+            .catch((error) => {
+                toast.error(error.toString());
+            })
+    }
+
+    const handleChipClick = (e) => {
+        addFilter(e.target.innerHTML);
+    };
+
+    const hasWorkflows = workflows === undefined || workflows === null || workflows.length === 0
+    const getWorkflowAppgroup = (data) => {
+        if (currTab !== 2) {
+            if (data.actions === undefined || data.actions === null) {
+                return []
+            }
+
+            var appsFound = []
+            for (var key in data.actions) {
+                const parsedAction = data.actions[key]
+                if (parsedAction.large_image === undefined || parsedAction.large_image === null || parsedAction.large_image === "") {
+                    continue
+                }
+
+                if (parsedAction.app_name === "Shuffle Tools" || parsedAction.app_id === "bc78f35c6c6351b07a09b7aed5d29652") {
+                    continue
+                }
+
+                if (appsFound.findIndex(data => data.app_name === parsedAction.app_name) < 0) {
+                    appsFound.push(parsedAction)
+                }
+            }
+        } else {
+            if (data.action_references === undefined || data.action_references === null) {
+                return []
+            }
+
+            var appsFound = []
+            for (var key in data.action_references) {
+                const parsedAction = data.action_references[key]
+                if (parsedAction.image_url === undefined || parsedAction.image_url === null || parsedAction.image_url === "") {
+                    continue
+                }
+
+                // if (parsedAction.name === "Shuffle Tools" || parsedAction.id === "bc78f35c6c6351b07a09b7aed5d29652") {
+                //     continue
+                // }
+
+                if (appsFound.findIndex(data => data.name === parsedAction.name) < 0) {
+                    appsFound.push(parsedAction)
+                }
+            }
+        }
+
+        return appsFound
+    }
+
+    const WorkflowSkeleton = () => {
+        return (
+            <Paper elevation={0} style={{
+                backgroundColor: theme.palette.platformColor,
+                width: "100%",
+                height: 120,
+                borderRadius: 8,
+            }}>
+                <div style={{
+                    display: "flex",
+                    padding: 10,
+                    width: "100%",
+                    height: "100%"
+                }}>
+                    <Skeleton
+                        variant="rectangular"
+                        width={100}
+                        height={90}
+                        style={{
+                            borderRadius: 6,
+                            backgroundColor: theme.palette.loaderColor,
+                        }}
+                    />
+                    <div style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        marginLeft: 10,
+                        flex: 1,
+                        gap: 6
+                    }}>
+                        <Skeleton
+                            variant="text"
+                            width="40%"
+                            height={24}
+                            style={{ backgroundColor: theme.palette.loaderColor }}
+                        />
+                        <Skeleton
+                            variant="text"
+                            width="60%"
+                            height={20}
+                            style={{ backgroundColor: theme.palette.loaderColor }}
+                        />
+                        <Skeleton
+                            variant="text"
+                            width="30%"
+                            height={20}
+                            style={{ backgroundColor: theme.palette.loaderColor }}
+                        />
+                    </div>
+                </div>
+            </Paper>
+        );
+    };
+
+    const LoadingWorkflowGrid = () => {
+        return (
+            <div style={{
+                marginTop: 16,
+                width: "100%",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(365px, 1fr))",
+                gap: "20px",
+                justifyContent: "space-between",
+                alignItems: "start",
+                padding: "0 10px"
+            }}>
+                {[...Array(7)].map((_, index) => (
+                    <WorkflowSkeleton key={index} />
+                ))}
+            </div>
+        );
+    };
+
+    const WorkflowPaper = (props) => {
+        const { data, type = "org" } = props;
+        const [open, setOpen] = React.useState(false);
+        const [anchorEl, setAnchorEl] = React.useState(null);
+
+        var boxColor = "#FFC633";
+        if (data.is_valid) {
+            boxColor = "#86c142";
+        }
+
+        if (!data.previously_saved) {
+            boxColor = "#f86a3e";
+        }
+
+        const menuClick = (event) => {
+            setOpen(!open);
+            setAnchorEl(event.currentTarget);
+        }
+
+
+        var parsedName = data.name;
+        if (
+            parsedName !== undefined &&
+            parsedName !== null &&
+            parsedName.length > 35
+        ) {
+            parsedName = parsedName.slice(0, 34) + "..";
+        }
+
+        const actions = data.actions !== null ? data.actions.length : 0;
+        const appGroup = getWorkflowAppgroup(data)
+        const [triggers, subflows] = getWorkflowMeta(data)
+
+        const hasSuborgs = data.suborg_distribution !== undefined && data.suborg_distribution !== null && data.suborg_distribution.length > 0
+        const isDistributed = (data.parentorg_workflow !== undefined && data.parentorg_workflow !== null && data.parentorg_workflow.length > 0) //|| (data.org_id !== userdata.active_org.id && data.org_id !== undefined && data.org_id !== null && data.org_id.length > 0)
+
+        const workflowMenuButtons = (
+            <Menu
+                id="long-menu"
+                anchorEl={anchorEl}
+                keepMounted
+                open={open}
+                onClose={() => {
+                    setOpen(false);
+                    setAnchorEl(null);
+                }}
+                MenuListProps={{
+                    sx: {
+                        backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                    }
+                }}
+            >
+                {isDistributed ?
+                    <MenuItem
+                        style={{ backgroundColor: theme.palette.inputColor, color: "white" }}
+                        onClick={() => {
+                            navigate(`/workflows/${data.id}`)
+                        }}
+                    >
+                        <VisibilityIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                        Explore Workflow
+                    </MenuItem>
+                    : null}
+                <MenuItem
+                    sx={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.text.primary, "&:hover": {backgroundColor: theme.palette.hoverColor}  }}
+                    disabled={isDistributed}
+                    onClick={(event) => {
+                        event.stopPropagation()
+                        if (data.actions !== undefined && data.actions !== null && data.actions.length > 0 && data.image !== "") {
+                            setEditing(data)
+
+                        } else {
+                            //toast("Need to side-load workflow to be edited properly")
+                            sideloadWorkflow(data.id, "edit")
+
+                            toast.info("Loading full workflow for editing. Please wait...")
+                        }
+                    }}
+                    key={"change"}
+                >
+                    <EditIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                    {"Edit details"}
+                </MenuItem>
+
+                <MenuItem
+                    sx={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.text.primary, "&:hover": {backgroundColor: theme.palette.hoverColor}  }}
+                    onClick={(event) => {
+                        window.open(`/forms/${data.id}`, "_blank")
+                    }}
+                    key={"explore forms"}
+                >
+                    <EditNoteIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                    {"Edit Form"}
+                </MenuItem>
+
+                <Divider />
+
+                <MenuItem
+                    sx={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.text.primary, "&:hover": {backgroundColor: theme.palette.hoverColor}  }}
+                    disabled={isDistributed}
+                    onClick={() => {
+                        sideloadWorkflow(data.id, "publish")
+
+                        toast.info("Loading full workflow for publishing. Please wait...")
+                    }}
+                    key={"publish"}
+                >
+                    <CloudUploadIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                    {"Publish Workflow"}
+                </MenuItem>
+
+                <MenuItem
+                    sx={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.text.primary, "&:hover": {backgroundColor: theme.palette.hoverColor}  }}
+                    //disabled={isDistributed}
+                    onClick={() => {
+                        sideloadWorkflow(data.id, "export", setOpen)
+
+                        toast.info("Loading full workflow to be exported. Please wait...")
+                    }}
+                    key={"export"}
+                >
+                    <GetAppIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                    {"Export Workflow"}
+                </MenuItem>
+
+                <Divider />
+
+                <MenuItem
+                    sx={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.text.primary, "&:hover": {backgroundColor: theme.palette.hoverColor}  }}
+                    disabled={isDistributed}
+                    onClick={() => {
+                        duplicateWorkflow(data)
+                        setOpen(false)
+                    }}
+                    key={"duplicate"}
+                >
+                    <FileCopyIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                    {"Duplicate Workflow"}
+                </MenuItem>
+
+                <MenuItem
+                    sx={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.text.primary, "&:hover": {backgroundColor: theme.palette.hoverColor}  }}
+                    onClick={() => {
+                        setDeleteModalOpen(true);
+                        setSelectedWorkflowId(data.id);
+                        setOpen(false);
+                    }}
+                    key={"delete"}
+                >
+                    <DeleteIcon style={{ marginLeft: 0, marginRight: 8 }} />
+                    {"Delete Workflow"}
+                </MenuItem>
+            </Menu>
+        );
+
+        var image = "";
+
+        var orgName = "";
+        var orgId = "";
+
+		var imageStyle = {
+			width: imagesize,
+			height: imagesize,
+			pointerEvents: "none",
+			marginLeft:
+				data.creator_org !== undefined && data.creator_org.length > 0
+					? 20
+					: 0,
+			borderRadius: 10,
+			cursor: "pointer",
+			marginRight: 10,
+		}
+
+        if (userdata.orgs !== undefined) {
+            const foundOrg = userdata.orgs.find((org) => org.id === data["org_id"]);
+            if (foundOrg !== undefined && foundOrg !== null) {
+                //position: "absolute", bottom: 5, right: -5,
+				imageStyle.border = foundOrg.id === userdata.active_org.id ? `2px solid ${boxColor}` : null
+
+
+                image =
+                    foundOrg.image === "" || foundOrg.image === null || foundOrg.image === undefined ? (
+                        <img
+                            alt={foundOrg.name}
+                            src={theme.palette.defaultImage}
+                            style={imageStyle}
+                        />
+                    ) : (
+                        <img
+                            alt={foundOrg.name}
+                            src={foundOrg.image}
+                            style={imageStyle}
+                            onClick={() => { }}
+                        />
+                    );
+
+                orgName = foundOrg.name;
+                orgId = foundOrg.id;
+            }
+        }
+
+		var triggerfound = false
+		var triggerstarted = false
+		var relevantTrigger = {}
+		for (var triggerkey in data?.triggers) {
+
+			const trigger = data?.triggers[triggerkey]
+			if (trigger?.trigger_type === "WEBHOOK") {
+				triggerfound = true
+				image = wfTriggers[0].large_image 
+
+				trigger.status = trigger?.status?.toLowerCase() 
+
+				relevantTrigger = trigger
+				if (trigger?.status === "running") {
+					imageStyle.border = `2px solid ${green}`
+					break
+				} else {
+					imageStyle.border = `2px solid ${red}`
+				}
+
+
+			} else if (trigger?.trigger_type === "SCHEDULE") {
+				triggerfound = true
+				image = wfTriggers[1].large_image 
+
+				trigger.status = trigger?.status?.toLowerCase() 
+
+				relevantTrigger = trigger
+				if (trigger?.status === "running") {
+					imageStyle.border = `2px solid ${green}`
+					break
+				} else {
+					imageStyle.border = `2px solid ${red}`
+				}
+
+			} 
+		}
+
+		if (!triggerfound) {
+			image = ""
+		}
+
+        var selectedCategory = ""
+        if (data.usecase_ids !== undefined && data.usecase_ids !== null && data.usecase_ids.length > 0 && usecases !== null && usecases !== undefined && usecases.length > 0) {
+            const oldcolor = boxColor.valueOf()
+
+            // Find the first usecase and use that ones' ID
+            for (var key in usecases) {
+                var category = usecases[key]
+                category.matches = []
+
+                for (var subcategorykey in category.list) {
+                    var subcategory = category.list[subcategorykey]
+                    subcategory.matches = []
+
+                    for (var usecasekey in data.usecase_ids) {
+                        if (data.usecase_ids[usecasekey].toLowerCase() === subcategory.name.toLowerCase()) {
+                            boxColor = category.color
+                            break
+                        }
+                    }
+
+                    if (boxColor !== oldcolor) {
+                        break
+                    }
+                }
+
+                if (boxColor !== oldcolor) {
+                    selectedCategory = category.name
+                    break
+                }
+            }
+        }
+
+        if (type === "public" && currTab === 2) {
+
+            const imageStyle = {
+                width: 24,
+                height: 24,
+                marginRight: 10,
+                border: "1px solid rgba(255,255,255,0.3)",
+            }
+
+            image = data.creator_info !== undefined && data.creator_info !== null && data.creator_info.image !== undefined && data.creator_info.image !== null && data.creator_info.image.length > 0 ? <Avatar alt={data.creator} src={data.creator_info.image} style={imageStyle} /> : <Avatar alt={"shuffle_image"} src={theme.palette.defaultImage} style={imageStyle} />
+
+            const creatorname = data.creator_info !== undefined && data.creator_info !== null && data.creator_info.username !== undefined && data.creator_info.username !== null && data.creator_info.username.length > 0 ? data.creator_info.username : "Shuffle"
+            if ((data.objectID === undefined || data.objectID === null) && data.id !== undefined && data.id !== null) {
+                data.objectID = data.id
+            }
+
+            //console.log("IMG: ", data)
+            var parsedUrl = `/workflows/${data.objectID}`
+            if (data.__queryID !== undefined && data.__queryID !== null) {
+                parsedUrl += `?queryID=${data.__queryID}`
+            }
+        }
+
+		//const isPublicWorkflow = data?.objectID === undefined || data?.objectID === null
+		const foundImage = currTab !== 2 && showWorkflowImages === false ? "" : data?.image_url === undefined || data?.image_url === null || data?.image_url === "" ? data?.image : data?.image_url
+		const foundTimeline = workflowTimelines.find((timeline) => timeline.id === data.id)
+        return (
+            <div 
+				id={`workflowbox-${data.id}`}
+				style={{ width: "100%", minWidth: 320, position: "relative", border: highlightIds.includes(data.id) ? "2px solid #f85a3e" : "inherit", borderBottom: isDistributed || hasSuborgs ? `1px solid ${theme.palette.distributionColor}` : "inherit", borderRadius: theme.palette?.borderRadius, backgroundColor: "#212121", fontFamily: theme.typography?.fontFamily, overflow: "hidden", }}
+			>
+
+				{foundImage?.length > 0 ? 
+					<img src={foundImage} alt="image" style={{
+						maxHeight: 250,
+						minHeight: 250,
+						minWidth: 100,
+						marginLeft: 12, 
+						cursor: "pointer", 
+					}} 
+					onClick={() => {
+						if (data?.objectID === undefined || data?.objectID === null) {
+							navigate(`/workflows/${data.id}`)
+						} else {
+							if (isCloud) {
+								navigate(`/workflows/${data.objectID}`)
+							} else {
+								window.open(`https://shuffler.io/workflows/${data.objectID}`, "_blank")
+							}
+						}
+					}}
+					/>
+					: null}
+						
+                <Paper square style={paperAppStyle}>
+                    {selectedCategory !== "" ?
+                        <Tooltip title={`Usecase Category: ${selectedCategory}`} placement="bottom">
+                            <div
+                                style={{
+                                    cursor: "pointer",
+                                    position: "absolute",
+                                    top: 0,
+                                    left: 0,
+                                    width: 3,
+                                    backgroundColor: boxColor,
+                                    borderRadius: "0 100px 0 0",
+                                    fontFamily: theme.typography?.fontFamily,
+
+                                    height: "100%",
+                                }}
+                                onClick={() => {
+                                    addFilter(selectedCategory)
+                                }}
+                            />
+                        </Tooltip>
+                    : null}
+
+                    <Grid
+                        item
+                        style={{ display: "flex", flexDirection: "column", width: "100%", fontFamily: theme.typography?.fontFamily }}
+                    >
+                        <Grid item style={{ display: "flex", maxHeight: 34 }}>
+
+
+                            <Tooltip arrow
+                                onMouseEnter={() => {
+                                    /*
+                                    if (data.image === undefined || data.image === null || data.image === "" && !loadingWorkflows.includes(data.id)) {
+                                            sideloadWorkflow(data.id, false) 
+                                            loadingWorkflows.push(data.id) 
+                                    }
+                                    */
+                                }}
+                                title={
+                                    <div style={{
+                                        width: "100%",
+                                        minWidth: 250,
+                                        maxWidth: 310,
+                                        padding: "12px 0",
+                                    }}>
+                                        {(data?.image !== undefined || (data?.image_url !== undefined && data?.image_url.length > 0)) ? (
+                                            <div style={{
+                                                marginBottom: 15,
+                                                borderRadius: theme.palette?.borderRadius,
+                                                overflow: "hidden",
+                                                border: `1px solid ${theme.palette.inputColor}`,
+                                            }}>
+                                                <img
+                                                    src={data?.image || data?.image_url}
+                                                    alt={data?.name}
+                                                    style={{
+                                                        backgroundColor: theme.palette.surfaceColor,
+                                                        width: "100%",
+                                                        height: "auto",
+                                                        display: "block",
+                                                    }}
+                                                />
+                                            </div>
+                                        ) : null}
+
+                                        <Typography style={{
+                                            color: "rgba(255,255,255,0.9)",
+                                            fontSize: "16px",
+                                            fontFamily: theme.typography?.fontFamily,
+                                        }}>
+                                            Edit: {data.name}
+                                        </Typography>
+
+                                        {(isDistributed || hasSuborgs) && (
+                                            <div style={{
+                                                backgroundColor: "rgba(64,224,208,0.1)", // Matching the teal color used in border
+                                                border: `1px solid ${theme.palette.distributionColor}`,
+                                                borderRadius: 4,
+                                                padding: "8px 12px",
+                                                marginTop: 8,
+                                            }}>
+                                                <Typography variant="body2" style={{
+                                                    color: theme.palette.distributionColor,
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8,
+                                                }}>
+                                                    This is a parentorg-controlled workflow
+                                                </Typography>
+                                            </div>
+                                        )}
+                                    </div>
+                                } placement="right">
+
+                                <Typography
+                                    style={{
+										textAlign: "left",
+                                        marginBottom: 0,
+                                        paddingBottom: 0,
+                                        fontSize: 22,
+                                        maxHeight: 30,
+                                        flex: 10,
+
+                                        fontFamily: theme.typography?.fontFamily,
+                                        fontWeight: 500,
+										minWidth: 375, 
+										maxWidth: 375, 
+										overflow: "hidden", 
+
+										color: "rgba(255,255,255,0.85)",
+                                    }}
+                                >
+                                    <Link
+                                        to={
+                                            currTab === 2 ? `https://shuffler.io${parsedUrl}` : type === "public" ? parsedUrl : data.workflow_as_code ? `/workflows/${data.id}/code` : `/workflows/${data.id}`
+                                        }
+                                        style={{ 
+											textDecoration: "none", 
+											color: theme.palette.text.primary, 
+											overflow: "hidden", 
+											textOverflow: "ellipsis", 
+											whiteSpace: "nowrap", 
+											maxWidth: "90%", 
+											display: "block" 
+										}}
+										target={currTab === 2 ? "_blank" : "_self"}
+									>
+                                        {parsedName}
+                                    </Link>
+                                </Typography>
+                            </Tooltip>
+                        </Grid>
+
+                        <Grid item style={workflowActionStyle}>
+                            {appGroup.length > 0 ?
+                                <div style={{ display: "flex", marginTop: 8, }}>
+                                    <AvatarGroup max={4} style={{ marginLeft: 5, maxHeight: 24, }}>
+                                        {currTab !== 2 && appGroup.map((data, index) => {
+                                            return (
+                                                <div
+                                                    key={index}
+                                                    style={{
+                                                        height: 24,
+                                                        width: 24,
+                                                        filter: themeMode === "dark" ? "brightness(0.6)" : "brightness(1)",
+                                                        cursor: "pointer",
+                                                    }}
+                                                    onClick={() => {
+                                                        addFilter(data.app_name);
+                                                    }}
+                                                >
+                                                    <Tooltip color="primary" title={data.app_name} placement="bottom">
+                                                        <Avatar alt={data.app_name} src={data.large_image} style={{ width: 24, height: 24 }} />
+                                                    </Tooltip>
+                                                </div>
+                                            )
+                                        })}
+                                        {
+                                            currTab === 2 && appGroup.map((data, index) => {
+                                                return (
+                                                    <div
+                                                        key={index}
+                                                        style={{
+                                                            height: 24,
+                                                            width: 24,
+                                                            filter: themeMode === "dark" ? "brightness(0.6)" : "brightness(1)",
+                                                            cursor: "pointer",
+                                                        }}
+                                                        onClick={() => {
+                                                            addFilter(data.app_name);
+                                                        }}
+                                                    >
+                                                        <Tooltip color="primary" title={data.name} placement="bottom">
+                                                            <Avatar alt={data.name} src={data.image_url} style={{ width: 24, height: 24 }} />
+                                                        </Tooltip>
+                                                    </div>
+                                                )
+                                            })}
+                                    </AvatarGroup>
+                                </div>
+                                :
+                                <Tooltip color="primary" title="Action amount" placement="bottom">
+                                    <span style={{ color: "#979797", display: "flex" }}>
+                                        <BubbleChartIcon
+                                            style={{ marginTop: "auto", marginBottom: "auto" }}
+                                        />
+                                        <Typography
+                                            style={{
+                                                marginLeft: 5,
+                                                marginTop: "auto",
+                                                marginBottom: "auto",
+                                            }}
+                                        >
+                                            {actions}
+                                        </Typography>
+                                    </span>
+                                </Tooltip>
+                            }
+                            <Tooltip
+                                color="primary"
+                                title="Amount of triggers"
+                                placement="bottom"
+                            >
+                                <span
+                                    style={{ marginLeft: 15, color: "#979797", display: "flex" }}
+                                >
+                                    <RestoreIcon
+                                        style={{
+                                            color: "#979797",
+                                            marginTop: "auto",
+                                            marginBottom: "auto",
+                                        }}
+                                    />
+                                    <Typography
+                                        style={{
+                                            marginLeft: 5,
+                                            marginTop: "auto",
+                                            marginBottom: "auto",
+                                        }}
+                                    >
+                                        {triggers}
+                                    </Typography>
+                                </span>
+                            </Tooltip>
+                            <Tooltip color="primary" title="Subflows used" placement="bottom">
+                                <span
+                                    style={{
+                                        marginLeft: 15,
+                                        display: "flex",
+                                        color: "#979797",
+                                        cursor: "pointer",
+                                    }}
+                                    onClick={() => {
+                                        if (subflows === 0) {
+                                            toast("No subflows for " + data.name);
+                                            return;
+                                        }
+
+                                        var newWorkflows = [data];
+                                        for (var key in data.triggers) {
+                                            const trigger = data.triggers[key];
+                                            if (trigger.app_name !== "Shuffle Workflow") {
+                                                continue;
+                                            }
+
+                                            if (
+                                                trigger.parameters !== undefined &&
+                                                trigger.parameters !== null &&
+                                                trigger.parameters.length > 0 &&
+                                                trigger.parameters[0].name === "workflow"
+                                            ) {
+                                                const newWorkflow = workflows.find(
+                                                    (item) => item.id === trigger.parameters[0].value
+                                                );
+                                                if (newWorkflow !== null && newWorkflow !== undefined) {
+                                                    newWorkflows.push(newWorkflow);
+                                                    continue;
+                                                }
+                                            }
+                                        }
+
+                                        setFilters(["Subflows of " + data.name]);
+                                        setFilteredWorkflows(newWorkflows);
+                                    }}
+                                >
+                                    <svg
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 18 18"
+                                        fill="none"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        style={{
+                                            color: "#979797",
+                                            marginTop: "auto",
+                                            marginBottom: "auto",
+                                        }}
+                                    >
+                                        <path
+                                            d="M0 0H15V15H0V0ZM16 16H18V18H16V16ZM16 13H18V15H16V13ZM16 10H18V12H16V10ZM16 7H18V9H16V7ZM16 4H18V6H16V4ZM13 16H15V18H13V16ZM10 16H12V18H10V16ZM7 16H9V18H7V16ZM4 16H6V18H4V16Z"
+                                            fill="#979797"
+                                        />
+                                    </svg>
+                                    <Typography
+                                        style={{
+                                            marginLeft: 5,
+                                            marginTop: "auto",
+                                            marginBottom: "auto",
+                                        }}
+                                    >
+                                        {subflows}
+                                    </Typography>
+                                </span>
+                            </Tooltip>
+                        </Grid>
+
+                        <Grid
+                            item
+                            style={{
+                                justifyContent: "left",
+                                overflow: "hidden",
+                                marginTop: 8,
+                                maxHeight: 35,
+                                fontFamily: theme.typography?.fontFamily,
+
+								textAlign: "left", 
+								minWidth: 200, 
+								maxWidth: 200,
+                            }}
+                        >
+                            {data.tags !== undefined && data.tags !== null
+                                ? data.tags.map((tag, index) => {
+                                    if (index >= 3) {
+                                        return null;
+                                    }
+
+                                    return (
+                                        <Chip
+                                            key={index}
+                                            style={chipStyle}
+                                            label={tag}
+                                            onClick={handleChipClick}
+                                            variant="outlined"
+                                            color="primary"
+                                        />
+                                    );
+                                })
+                                : null}
+                        </Grid>
+
+                        {type !== "public" ? (
+                            <div style={{ position: "absolute", top: 10, right: 10, }}>
+                                <IconButton
+                                    aria-label="more"
+                                    aria-controls="long-menu"
+                                    aria-haspopup="true"
+                                    onClick={menuClick}
+                                    style={{ padding: "0px", color: "#979797" }}
+                                >
+                                    <MoreVertIcon />
+                                </IconButton>
+                                {workflowMenuButtons}
+                            </div>
+                        ) : null}
+
+                        {(data.sharing !== undefined && data.sharing !== null && data.sharing === "form") || (data?.form_control?.input_markdown !== undefined && data?.form_control?.input_markdown !== null && data?.form_control?.input_markdown !== "") && type !== "public" ?
+                            <Tooltip title="Edit Form" placement="top">
+                                <div style={{ position: "absolute", top: 100, right: 8, }}>
+                                    <IconButton
+                                        aria-label="more"
+                                        aria-controls="long-menu"
+                                        aria-haspopup="true"
+                                        onClick={() => {
+                                            navigate(`/forms/${data.id}`)
+                                        }}
+                                        style={{ padding: "0px", color: "#979797" }}
+                                    >
+                                        <EditNoteIcon />
+                                    </IconButton>
+                                </div>
+                            </Tooltip>
+                        : null}
+
+						{(data?.validation?.validation_ran === true && data?.validation?.valid === false && data?.validation?.errors?.length > 0 ) ?                            
+							<Tooltip title={`Explore more than ${data?.validation?.errors?.length} notifications for this workflow. When the last execution finishes without errors AND notifications stop occuring, this icon disappears.`} placement="top">
+                                <div style={{ position: "absolute", top: 40, right: 8, }}>
+                                    <IconButton
+                                        aria-label="more"
+                                        aria-controls="long-menu"
+                                        aria-haspopup="true"
+                                        onClick={() => {
+                                            window.open(`/admin?admin_tab=notifications&workflow=${data.id}`, "_blank")
+                                        }}
+                                        style={{ 
+											padding: "0px", 
+											transparency: 0.5,
+										}}
+										color="primary"
+                                    >
+										<ErrorOutlineIcon 
+											style={{ 
+												color: "#f86a3e",
+												marginRight: 2, 
+											}} 
+										/>
+                                    </IconButton>
+                                </div>
+                            </Tooltip>
+						: null}
+
+						{currTab === 2 ? null : 
+							<Tooltip title={`${relevantTrigger?.name}: ${relevantTrigger?.status}`} placement="bottom">
+								<div
+									style={{ position: "absolute", top: 70, right: -2, cursor: "" }}
+									onClick={() => {
+										//navigate("/admin")
+									}}
+								>
+									{image?.includes("data:image") ? 
+										<img
+											alt={orgName}
+											src={image}
+											style={imageStyle}
+										/>
+										:
+										image
+									}
+								</div>
+							</Tooltip>
+						}
+
+                    </Grid>
+
+					{showExecutionStats === true && foundTimeline !== undefined && foundTimeline?.timeline?.length > 0 && 
+					  <div style={{ margin: "40px 10px 0px 10px", paddingTop: 0, borderTop: `1px solid ${theme.palette.text.secondary}`, zoom: 1.4 }}>
+						<LineChartWrapper 
+							inputname={""}
+							keys={foundTimeline?.timeline}
+							height={100}
+							width={100}
+							border={false}
+
+							color={"#808080"}
+						/>
+					  </div>
+					}
+                </Paper>
+
+            </div>
+        )
+    }
+
+    // Can create and set workflows
+    const setNewWorkflow = (
+        name,
+        description,
+        tags,
+        defaultReturnValue,
+        editingWorkflow,
+        redirect,
+        currentUsecases,
+        inputblogpost,
+        inputstatus,
+    ) => {
+
+        var method = "POST";
+        var extraData = "";
+        var workflowdata = {};
+
+        if (editingWorkflow.id !== undefined) {
+            console.log("Building original workflow");
+            method = "PUT";
+            //extraData = "/" + editingWorkflow.id + "?skip_save=true";
+            extraData = "/" + editingWorkflow.id + "?skip_save=true";
+            workflowdata = editingWorkflow;
+
+            console.log("REMOVING OWNER");
+            workflowdata["owner"] = "";
+            workflowdata["org"] = [];
+            workflowdata["org_id"] = "";
+            workflowdata["execution_org"] = {};
+            workflowdata["previously_saved"] = false;
+            // FIXME: Loop triggers and turn them off?
+        }
+
+        workflowdata["name"] = name;
+        workflowdata["description"] = description;
+        if (tags !== undefined) {
+            workflowdata["tags"] = tags;
+        }
+
+        workflowdata["blogpost"] = inputblogpost
+        workflowdata["status"] = inputstatus
+
+        if (defaultReturnValue !== undefined) {
+            workflowdata["default_return_value"] = defaultReturnValue;
+        }
+
+        if (currentUsecases !== undefined && currentUsecases !== null) {
+            workflowdata["usecase_ids"] = currentUsecases
+            //workflows[0].category = ["detect"]
+            //workflows[0].usecase_ids = ["Correlate tickets"]
+        }
+
+        const new_url = `${globalUrl}/api/v1/workflows${extraData}`
+        return fetch(new_url, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+            },
+            body: JSON.stringify(workflowdata),
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status !== 200) {
+                    console.log("Status not 200 for workflows :O!");
+                    return;
+                }
+                setSubmitLoading(false);
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                if (responseJson.success === false) {
+                    if (responseJson.reason !== undefined) {
+                        toast("Error setting workflow: ", responseJson.reason)
+                    } else {
+                        toast("Error setting workflow.")
+                    }
+
+                    return
+                }
+
+                if (redirect) {
+                    //window.location.pathname = "/workflows/" + responseJson["id"];
+                    navigate("/workflows/" + responseJson["id"])
+                    //setModalOpen(false);
+                } else if (!redirect) {
+                    // Update :)
+                    setTimeout(() => {
+                        getAvailableWorkflows();
+                    }, 4000);
+                    setSubmitLoading(false)
+                    setModalOpen(false);
+                } else {
+                    //toast("Successfully changed basic info for workflow");
+                    setModalOpen(false);
+                }
+
+                return responseJson;
+            })
+            .catch((error) => {
+                toast(error.toString());
+                setSubmitLoading(false)
+                setModalOpen(false);
+                setSubmitLoading(false);
+            });
+    };
+
+    const importFiles = (event) => {
+        console.log("Importing!");
+        setSubmitLoading(true)
+
+        if (event.target.files.length > 0) {
+            console.log("Files: !", event.target.files.length);
+            for (var key in event.target.files) {
+                const file = event.target.files[key];
+                if (file.type !== "application/json") {
+                    if (file.type !== undefined) {
+                        toast("File has to contain valid json");
+                        setSubmitLoading(false)
+                    }
+
+                    continue;
+                }
+
+                const reader = new FileReader();
+                var workflowids = []
+
+                // Waits for the read
+                reader.addEventListener("load", (event) => {
+                    var data = reader.result;
+                    try {
+                        data = JSON.parse(reader.result);
+                    } catch (e) {
+                        toast("Invalid JSON: " + e);
+                        setSubmitLoading(false)
+                        return;
+                    }
+
+                    console.log("File being loaded: ", data.name);
+
+                    // Initialize the workflow itself
+                    setNewWorkflow(
+                        data.name,
+                        data.description,
+                        data.tags,
+                        data.default_return_value,
+                        {},
+                        false,
+                        [],
+                        "",
+                        data.status,
+                    )
+                        .then((response) => {
+                            if (response !== undefined) {
+                                // SET THE FULL THING
+                                data.id = response.id;
+                                data.first_save = false;
+                                data.previously_saved = false;
+                                data.is_valid = false;
+                                data.org_id = userdata.active_org.id
+                                data.org = []
+                                data.execution_org = {}
+
+                                workflowids.push(data.id)
+
+                                // Actually create it
+                                setNewWorkflow(
+                                    data.name,
+                                    data.description,
+                                    data.tags,
+                                    data.default_return_value,
+                                    data,
+                                    false,
+                                    [],
+                                    "",
+                                    data.status,
+                                ).then((response) => {
+                                    if (response !== undefined) {
+                                        toast.success("Imported " + data.name);
+                                    }
+                                });
+                            }
+                        })
+                        .catch((error) => {
+                            toast("Import error: " + error.toString());
+                        });
+                });
+
+                // Actually reads
+                reader.readAsText(file);
+            }
+        }
+
+        setLoadWorkflowsModalOpen(false);
+
+        if (workflowids.length > 0) {
+            setHighlightIds(workflowids)
+        }
+    };
+
+    const getWorkflowMeta = (data) => {
+        let triggers = 0;
+        let subflows = 0;
+        if (
+            data.triggers !== undefined &&
+            data.triggers !== null &&
+            data.triggers.length > 0
+        ) {
+            triggers = data.triggers.length;
+            for (let key in data.triggers) {
+                if (data.triggers[key].app_name === "Shuffle Workflow") {
+                    subflows += 1;
+                }
+            }
+        }
+
+        return [triggers, subflows];
+    };
+
+    const WorkflowListView = () => {
+        let workflowData = "";
+        if (workflows.length > 0) {
+            const columns = [
+                {
+                    field: "image",
+                    headerName: "Logo",
+                    width: 50,
+                    sortable: false,
+                    renderCell: (params) => {
+                        const data = params.row.record;
+
+                        var boxColor = "#FFC633";
+                        if (data.is_valid) {
+                            boxColor = "#86c142";
+                        }
+
+                        if (!data.previously_saved) {
+                            boxColor = "#f85a3e";
+                        }
+
+                        var image = "";
+                        if (userdata.orgs !== undefined) {
+                            const foundOrg = userdata.orgs.find(
+                                (org) => org.id === data["org_id"]
+                            );
+                            if (foundOrg !== undefined && foundOrg !== null) {
+                                //position: "absolute", bottom: 5, right: -5,
+                                const imageStyle = {
+                                    width: imagesize + 7,
+                                    height: imagesize + 7,
+                                    pointerEvents: "none",
+                                    marginLeft:
+                                        data.creator_org !== undefined &&
+                                            data.creator_org.length > 0
+                                            ? 20
+                                            : 0,
+                                    borderRadius: 10,
+                                    border:
+                                        foundOrg.id === userdata.active_org.id
+                                            ? `3px solid ${boxColor}`
+                                            : null,
+                                    cursor: "pointer",
+                                    marginTop: 5,
+                                };
+
+                                //<Tooltip title={`Org: ${foundOrg.name}`} placement="bottom">
+                                image =
+                                    foundOrg.image === "" ? (
+                                        <img
+                                            alt={foundOrg.name}
+                                            src={theme.palette.defaultImage}
+                                            style={imageStyle}
+                                        />
+                                    ) : (
+                                        <img
+                                            alt={foundOrg.name}
+                                            src={foundOrg.image}
+                                            style={imageStyle}
+                                            onClick={() => {
+                                                //setFilteredWorkflows(newWorkflows)
+                                            }}
+                                        />
+                                    );
+                            }
+                        }
+
+                        return <div styl={{ cursor: "pointer" }}>{image}</div>;
+                    },
+                },
+                {
+                    field: "title",
+                    headerName: "Title",
+                    width: 330,
+                    renderCell: (params) => {
+                        const data = params.row.record;
+
+
+                        return (
+                            <Grid item>
+                                <Link
+                                    to={"/workflows/" + data.id}
+                                    style={{ textDecoration: "none", color: "inherit" }}
+                                >
+                                    <Typography>{data.name}</Typography>
+                                </Link>
+                            </Grid>
+                        );
+                    },
+                },
+
+                {
+                    field: "options",
+                    headerName: "Options",
+                    width: 200,
+                    sortable: false,
+                    disableClickEventBubbling: true,
+                    renderCell: (params) => {
+                        const data = params.row.record;
+                        const actions = data.actions !== null ? data.actions.length : 0;
+                        let [triggers, subflows] = getWorkflowMeta(data);
+                        const appGroup = getWorkflowAppgroup(data)
+
+                        return (
+                            <Grid item>
+                                <div style={{ display: "flex" }}>
+                                    {appGroup.length > 0 ?
+                                        <div style={{ display: "flex", marginTop: 3, }}>
+                                            <AvatarGroup max={4} style={{ marginLeft: 5, maxHeight: 24, }}>
+                                                {appGroup.map((data, index) => {
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            style={{
+                                                                height: 24,
+                                                                width: 24,
+                                                                filter: "brightness(0.6)",
+                                                                cursor: "pointer",
+                                                            }}
+                                                            onClick={() => {
+                                                                addFilter(data.app_name);
+                                                            }}
+                                                        >
+                                                            <Tooltip color="primary" title={data.app_name} placement="bottom">
+                                                                <Avatar alt={data.app_name} src={data.large_image} style={{ width: 24, height: 24 }} />
+                                                            </Tooltip>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </AvatarGroup>
+                                        </div>
+                                        :
+                                        <Tooltip color="primary" title="Action amount" placement="bottom">
+                                            <span style={{ color: "#979797", display: "flex" }}>
+                                                <BubbleChartIcon
+                                                    style={{ marginTop: "auto", marginBottom: "auto" }}
+                                                />
+                                                <Typography
+                                                    style={{
+                                                        marginLeft: 5,
+                                                        marginTop: "auto",
+                                                        marginBottom: "auto",
+                                                    }}
+                                                >
+                                                    {actions}
+                                                </Typography>
+                                            </span>
+                                        </Tooltip>
+                                    }
+
+                                    <Tooltip
+                                        color="primary"
+                                        title="Amount of triggers"
+                                        placement="bottom"
+                                    >
+                                        <span
+                                            style={{
+                                                marginLeft: 15,
+                                                color: "#979797",
+                                                display: "flex",
+                                            }}
+                                        >
+                                            <RestoreIcon
+                                                style={{
+                                                    color: "#979797",
+                                                    marginTop: "auto",
+                                                    marginBottom: "auto",
+                                                }}
+                                            />
+                                            <Typography
+                                                style={{
+                                                    marginLeft: 5,
+                                                    marginTop: "auto",
+                                                    marginBottom: "auto",
+                                                }}
+                                            >
+                                                {triggers}
+                                            </Typography>
+                                        </span>
+                                    </Tooltip>
+                                    <Tooltip color="primary" title="Subflows used" placement="bottom">
+                                        <span
+                                            style={{
+                                                marginLeft: 15,
+                                                display: "flex",
+                                                color: "#979797",
+                                                cursor: "pointer",
+                                            }}
+                                            onClick={() => {
+                                                if (subflows === 0) {
+                                                    toast("No subflows for " + data.name);
+                                                    return;
+                                                }
+
+                                                var newWorkflows = [data];
+                                                for (var key in data.triggers) {
+                                                    const trigger = data.triggers[key];
+                                                    if (trigger.app_name !== "Shuffle Workflow") {
+                                                        continue;
+                                                    }
+
+                                                    if (
+                                                        trigger.parameters !== undefined &&
+                                                        trigger.parameters !== null &&
+                                                        trigger.parameters.length > 0 &&
+                                                        trigger.parameters[0].name === "workflow"
+                                                    ) {
+                                                        const newWorkflow = workflows.find(
+                                                            (item) => item.id === trigger.parameters[0].value
+                                                        );
+                                                        if (
+                                                            newWorkflow !== null &&
+                                                            newWorkflow !== undefined
+                                                        ) {
+                                                            newWorkflows.push(newWorkflow);
+                                                            continue;
+                                                        }
+                                                    }
+                                                }
+
+                                                setFilters(["Subflows of " + data.name]);
+                                                setFilteredWorkflows(newWorkflows);
+                                            }}
+                                        >
+                                            <svg
+                                                width="18"
+                                                height="18"
+                                                viewBox="0 0 18 18"
+                                                fill="none"
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                style={{
+                                                    color: "#979797",
+                                                    marginTop: "auto",
+                                                    marginBottom: "auto",
+                                                }}
+                                            >
+                                                <path
+                                                    d="M0 0H15V15H0V0ZM16 16H18V18H16V16ZM16 13H18V15H16V13ZM16 10H18V12H16V10ZM16 7H18V9H16V7ZM16 4H18V6H16V4ZM13 16H15V18H13V16ZM10 16H12V18H10V16ZM7 16H9V18H7V16ZM4 16H6V18H4V16Z"
+                                                    fill="#979797"
+                                                />
+                                            </svg>
+                                            <Typography
+                                                style={{
+                                                    marginLeft: 5,
+                                                    marginTop: "auto",
+                                                    marginBottom: "auto",
+                                                }}
+                                            >
+                                                {subflows}
+                                            </Typography>
+                                        </span>
+                                    </Tooltip>
+                                </div>
+                            </Grid>
+                        );
+                    },
+                },
+                {
+                    field: "tags",
+                    headerName: "Tags",
+                    maxHeight: 15,
+                    width: 300,
+                    sortable: false,
+                    disableClickEventBubbling: true,
+                    renderCell: (params) => {
+                        const data = params.row.record;
+                        return (
+                            <Grid item>
+                                {data.tags !== undefined
+                                    ? data.tags.map((tag, index) => {
+                                        if (index >= 3) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <Chip
+                                                key={index}
+                                                style={chipStyle}
+                                                label={tag}
+                                                variant="outlined"
+                                                color="primary"
+                                            />
+                                        );
+                                    })
+                                    : null}
+                            </Grid>
+                        );
+                    },
+                },
+                {
+                    field: "",
+                    headerName: "",
+                    maxHeight: 15,
+                    width: 100,
+                    sortable: false,
+                    disableClickEventBubbling: true,
+                    renderCell: (params) => { },
+                },
+            ];
+
+            let rows = [];
+            rows = filteredWorkflows.map((data, index) => {
+                let obj = {
+                    id: index + 1,
+                    title: data.name,
+                    record: data,
+                };
+
+                return obj;
+            })
+
+			console.log("ROWS: ", rows)
+
+            workflowData = (
+                <DataGrid
+                    color="primary"
+                    className={classes.datagrid}
+                    rows={rows}
+                    columns={columns}
+                    page={page}
+                    onPageChange={(newPage) => {
+                        setPage(newPage)
+                    }}
+                    pageSize={pageSize}
+                    onPageSizeChange={(newPageSize) => {
+                        setPageSize(newPageSize);
+                    }}
+                    rowsPerPageOptions={[25, 50, 100, 150]}
+                    checkboxSelection
+                    autoHeight
+                    density="standard"
+                    onSelectionModelChange={(newSelection) => {
+                        setSelectedWorkflowIndexes(newSelection)
+                    }}
+                    selectionModel={selectedWorkflowIndexes}
+                    components={{
+                        Toolbar: GridToolbar,
+                    }}
+                />
+            );
+        }
+        return (
+            <div style={{ ...gridContainer, backgroundColor: theme.palette.platformColor }}>
+                <Tooltip title={`New Workflow`} placement="bottom">
+                    <IconButton
+                        style={{ position: "absolute", top: 10, right: 50, zIndex: 1000 }}
+                        onClick={() => {
+                            setModalOpen(true)
+                            setIsEditing(false)
+                        }}
+                    >
+                        <AddCircleIcon style={{}} />
+                    </IconButton>
+                </Tooltip>
+                {filteredWorkflows.length === 0 ? null :
+                    <IconButton
+                        style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}
+                        disabled={selectedWorkflowIndexes.length === 0}
+                        onClick={() => {
+                            setDeleteModalOpen(true)
+                        }}
+                    >
+                        <Tooltip
+                            title={`Delete ${selectedWorkflowIndexes.length} workflows`}
+                            placement="top"
+                        >
+                            <DeleteIcon />
+                        </Tooltip>
+                    </IconButton>
+                }
+                {workflowData}
+            </div>
+        )
+    };
+
+    var total_count = 0
+    const modalView = dialogModalOpen ? (
+        <Dialog
+            open={dialogModalOpen}
+            onClose={() => {
+                setDialogModalOpen(false);
+            }}
+            PaperProps={{
+                style: {
+                    backgroundColor: theme.palette.surfaceColor,
+                    color: "white",
+                    minWidth: isMobile ? "90%" : "800px",
+                    maxWidth: isMobile ? "90%" : "800px",
+                    borderRadius: 8,
+                },
+            }}
+        >
+            <DialogTitle style={{ padding: "20px 24px" }}>
+                <div style={{
+                    color: "rgba(255,255,255,0.9)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                }}>
+                    <Typography variant="h5">
+                        {editingWorkflow.id !== undefined ? "Edit Workflow" : "Create New Workflow"}
+                    </Typography>
+                    <div style={{ display: "flex", gap: 15 }}>
+                        <Tooltip title={"Import manually"} placement="top">
+                            <IconButton
+                                color="primary"
+                                size="medium"
+                                onClick={() => upload.click()}
+                                style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                            >
+                                <PublishIcon />
+                            </IconButton>
+                        </Tooltip>
+                        <IconButton
+                            size="medium"
+                            onClick={() => setDialogModalOpen(false)}
+                            style={{ backgroundColor: "rgba(255,255,255,0.08)" }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                    </div>
+                </div>
+            </DialogTitle>
+            <FormControl>
+                <DialogContent style={{ padding: "0 24px 20px" }}>
+                    <TextField
+                        onBlur={(event) => setNewWorkflowName(event.target.value)}
+                        InputProps={{
+                            style: {
+                                color: "white",
+                                backgroundColor: theme.palette.inputColor,
+                                borderRadius: 8,
+                            },
+                        }}
+                        color="primary"
+                        label="Workflow Name"
+                        required
+                        margin="dense"
+                        defaultValue={newWorkflowName}
+                        autoFocus
+                        fullWidth
+                        variant="outlined"
+                    />
+                    <TextField
+                        onBlur={(event) => setNewWorkflowDescription(event.target.value)}
+                        InputProps={{
+                            style: {
+                                color: "white",
+                                backgroundColor: theme.palette.inputColor,
+                                borderRadius: 8,
+                            },
+                        }}
+                        color="primary"
+                        label="Description"
+                        defaultValue={newWorkflowDescription}
+                        multiline
+                        rows={3}
+                        margin="dense"
+                        fullWidth
+                        variant="outlined"
+                        style={{ marginTop: 16 }}
+                    />
+                    <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
+                        <MuiChipsInput
+                            style={{ flex: 1 }}
+                            InputProps={{
+                                style: {
+                                    color: "white",
+                                    backgroundColor: theme.palette.inputColor,
+                                    borderRadius: 8,
+                                },
+                            }}
+                            label="Tags"
+                            color="primary"
+                            fullWidth
+                            value={newWorkflowTags}
+                            onChange={(chips) => {
+                                // Directly set the new array instead of mutating
+                                setNewWorkflowTags(chips);
+                            }}
+                            onBlur={(event) => {
+                                if (event.target.value.length === 0) {
+                                    return
+                                }
+
+                                if (newWorkflowTags.includes(event.target.value)) {
+                                    return
+                                }
+
+                                // Create new array instead of pushing
+                                setNewWorkflowTags([...newWorkflowTags, event.target.value]);
+                            }}
+                            onAdd={(chip) => {
+                                // Create new array instead of pushing
+                                setNewWorkflowTags([...newWorkflowTags, chip]);
+                            }}
+                            onDelete={(chip, index) => {
+                                // Filter instead of splice
+                                setNewWorkflowTags(newWorkflowTags.filter((_, i) => i !== index));
+                            }}
+                            variant="outlined"
+                        />
+                        {usecases !== null && usecases !== undefined && usecases.length > 0 ?
+                            <FormControl style={{ flex: 1 }} variant="outlined">
+                                <InputLabel>Usecases</InputLabel>
+                                <Select
+                                    defaultValue=""
+                                    label="Usecases"
+                                    multiple
+                                    value={selectedUsecases}
+                                    renderValue={(selected) => selected.join(', ')}
+                                    onChange={(event) => {
+                                        console.log("Changed: ", event)
+                                    }}
+                                    style={{
+                                        backgroundColor: theme.palette.inputColor,
+                                        borderRadius: 8,
+                                    }}
+                                >
+                                    <MenuItem value="">
+                                        <em>None</em>
+                                    </MenuItem>
+                                    {usecases.map((usecase, index) => (
+                                        <span key={index}>
+                                            <ListSubheader style={{ color: usecase.color }}>
+                                                {usecase.name}
+                                            </ListSubheader>
+                                            {usecase.list.map((subcase, subindex) => {
+                                                total_count += 1
+                                                return (
+                                                    <MenuItem
+                                                        key={subindex}
+                                                        value={total_count}
+                                                        onClick={(event) => {
+                                                            if (selectedUsecases.includes(subcase.name)) {
+                                                                const itemIndex = selectedUsecases.indexOf(subcase.name)
+                                                                if (itemIndex > -1) {
+                                                                    selectedUsecases.splice(itemIndex, 1)
+                                                                }
+                                                            } else {
+                                                                selectedUsecases.push(subcase.name)
+                                                            }
+                                                            setUpdate(Math.random());
+                                                            setSelectedUsecases(selectedUsecases)
+                                                        }}
+                                                    >
+                                                        <Checkbox
+                                                            style={{
+                                                                color: selectedUsecases.includes(subcase.name)
+                                                                    ? usecase.color
+                                                                    : theme.palette.inputColor
+                                                            }}
+                                                            checked={selectedUsecases.includes(subcase.name)}
+                                                        />
+                                                        <ListItemText primary={subcase.name} />
+                                                    </MenuItem>
+                                                )
+                                            })}
+                                        </span>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            : null}
+                    </div>
+
+                    <Collapse in={showMoreClicked}>
+                        <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
+                            <TextField
+                                onBlur={(event) => {
+                                    if (event.target.value.toLowerCase() === "test") {
+                                        setStatus("test")
+                                    } else if (event.target.value.toLowerCase() === "production") {
+                                        setStatus("production")
+                                    }
+                                }}
+                                InputProps={{
+                                    style: {
+                                        color: "white",
+                                        backgroundColor: theme.palette.inputColor,
+                                        borderRadius: 8,
+                                    },
+                                }}
+                                color="primary"
+                                label="Status"
+                                defaultValue={status}
+                                helperText="Can be test or production"
+                                fullWidth
+                                variant="outlined"
+                            />
+                            <TextField
+                                onBlur={(event) => setBlogpost(event.target.value)}
+                                InputProps={{
+                                    style: {
+                                        color: "white",
+                                        backgroundColor: theme.palette.inputColor,
+                                        borderRadius: 8,
+                                    },
+                                }}
+                                color="primary"
+                                label="Reference"
+                                defaultValue={blogpost}
+                                helperText="Blogpost or documentation reference"
+                                fullWidth
+                                variant="outlined"
+                            />
+                            <TextField
+                                onBlur={(event) => setDefaultReturnValue(event.target.value)}
+                                InputProps={{
+                                    style: {
+                                        color: "white",
+                                        backgroundColor: theme.palette.inputColor,
+                                        borderRadius: 8,
+                                    },
+                                }}
+                                color="primary"
+                                label="Default Return Value"
+                                defaultValue={defaultReturnValue}
+                                helperText="Used for Subflows if the subflow fails"
+                                multiline
+                                rows={3}
+                                fullWidth
+                                variant="outlined"
+                            />
+                        </div>
+                    </Collapse>
+
+                    <Button
+                        style={{
+                            marginTop: 16,
+                            color: "white",
+                            textTransform: "none"
+                        }}
+                        onClick={() => setShowMoreClicked(!showMoreClicked)}
+                        startIcon={showMoreClicked ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    >
+                        {showMoreClicked ? "Show Less" : "Show More Options"}
+                    </Button>
+                </DialogContent>
+                <DialogActions style={{ padding: "16px 24px" }}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => {
+                            setNewWorkflowName("");
+                            setNewWorkflowDescription("");
+                            setDefaultReturnValue("");
+                            setEditingWorkflow({});
+                            setNewWorkflowTags([]);
+                            setDialogModalOpen(false);
+                            setSelectedUsecases([])
+                        }}
+                    >
+                        Cancel
+                    </Button>
+                    <Button
+                        variant="contained"
+                        disabled={newWorkflowName.length === 0}
+                        onClick={() => {
+                            if (editingWorkflow.id !== undefined) {
+                                setNewWorkflow(
+                                    newWorkflowName,
+                                    newWorkflowDescription,
+                                    newWorkflowTags,
+                                    defaultReturnValue,
+                                    editingWorkflow,
+                                    false,
+                                    selectedUsecases,
+                                    blogpost,
+                                    status,
+                                );
+                                setNewWorkflowName("");
+                                setDefaultReturnValue("");
+                                setNewWorkflowDescription("");
+                                setEditingWorkflow({});
+                                setNewWorkflowTags([]);
+                            } else {
+                                setNewWorkflow(
+                                    newWorkflowName,
+                                    newWorkflowDescription,
+                                    newWorkflowTags,
+                                    defaultReturnValue,
+                                    {},
+                                    true,
+                                    selectedUsecases,
+                                    blogpost,
+                                    status,
+                                );
+                            }
+                            setSubmitLoading(true);
+                            setSelectedUsecases([])
+                        }}
+                    >
+                        {submitLoading ? <CircularProgress size={24} /> : "Submit"}
+                    </Button>
+                </DialogActions>
+            </FormControl>
+        </Dialog>
+    ) : null;
+
+    const viewSize = {
+        workflowView: 4,
+        executionsView: 3,
+        executionResults: 4,
+    };
+
+    const workflowViewStyle = {
+        flex: viewSize.workflowView,
+        marginLeft: 10,
+        marginRight: 10,
+    };
+
+    if (viewSize.workflowView === 0) {
+        workflowViewStyle.display = "none";
+    }
+
+    const workflowButtons = (
+        <span>
+            <Tooltip color="primary" title={"Explore Workflow Runs"} placement="top">
+                <Button
+                    disabled={workflows.length === 0}
+                    color="secondary"
+                    variant="text"
+                    onClick={() => {
+                        navigate("/workflows/debug")
+                    }}
+                >
+                    <QueryStatsIcon />
+                </Button>
+            </Tooltip>
+            {view === "list" && (
+                <Tooltip color="primary" title={"Grid View"} placement="top">
+                    <Button
+                        color="secondary"
+                        variant="text"
+                        onClick={() => {
+                            localStorage.setItem("view", "grid");
+                            setView("grid");
+                        }}
+                    >
+                        <GridOnIcon />
+                    </Button>
+                </Tooltip>
+            )}
+            {view === "grid" && (
+                <Tooltip color="primary" title={"List View"} placement="top">
+                    <Button
+                        color="secondary"
+                        variant="text"
+                        onClick={() => {
+                            localStorage.setItem("view", "list");
+                            setView("list");
+
+							setCurrTab(0)
+                        }}
+                    >
+                        <ListIcon />
+                    </Button>
+                </Tooltip>
+            )}
+            <Tooltip color="primary" title={"Import workflows"} placement="top">
+                <Button
+                    color="secondary"
+                    style={{}}
+                    variant="text"
+                    onClick={() => upload.click()}
+                >
+
+                    {submitLoading ? <CircularProgress color="secondary" /> : <PublishIcon />}
+                </Button>
+            </Tooltip>
+            <input
+                hidden
+                type="file"
+                multiple="multiple"
+                ref={(ref) => (upload = ref)}
+                onChange={importFiles}
+            />
+            {workflows.length > 0 ? (
+                <Tooltip
+                    color="primary"
+                    title={`Download ALL workflows (${workflows.length})`}
+                    placement="top"
+                >
+                    <Button
+                        color="secondary"
+                        style={{}}
+                        disabled={isCloud}
+                        variant="text"
+                        onClick={() => {
+                            exportAllWorkflows(workflows);
+                        }}
+                    >
+                        <GetAppIcon />
+                    </Button>
+                </Tooltip>
+            ) : null}
+            {isCloud ? null : (
+                <Tooltip color="primary" title={"Import workflows to Shuffle"} placement="top">
+                    <Button
+                        color="secondary"
+                        style={{}}
+                        variant="text"
+                        onClick={() => setLoadWorkflowsModalOpen(true)}
+                    >
+                        <CloudDownloadIcon />
+                    </Button>
+                </Tooltip>
+            )}
+        </span>
+    );
+
+    // const tourOptions = {
+    // 	defaultStepOptions: {
+    // 		classes: "shadow-md bg-purple-dark",
+    //   	scrollTo: true
+    // 	},
+    // 	useModalOverlay: true,
+    // 	tourName: workflows,
+    // 	exitOnEsc: true,
+    // }
+
+    //  //classes: "custom-class-name-1 custom-class-name-2",
+    // const newSteps = [
+    // 	{
+    //   	id: "intro",
+    //   	scrollTo: true,
+    //   	beforeShowPromise: function() {
+    //   	  return new Promise(function(resolve) {
+    //   	    setTimeout(function() {
+    //   	      window.scrollTo(0, 0);
+    //   	      resolve();
+    //   	    }, 500);
+    //   	  });
+    //   	},
+    //   	buttons: [
+    //   	  {
+    //   	    classes: "shepherd-button-primary",
+    // 				style: {
+    // 					backgroundColor: "red",	
+    // 					color: "white", 
+    // 				},
+    //   	    text: "Next",
+    //   	    type: "next"
+    //   	  }
+    //   	],
+    //   	highlightClass: "highlight",
+    //   	showCancelLink: true,
+    //   	text: [
+    //   	  "React-Shepherd is a JavaScript library for guiding users through your React app."
+    //   	],
+    //   	when: {
+    //   	  show: () => {
+    //   	    console.log("show step 1");
+    //   	  },
+    //   	  hide: () => {
+    //   	    console.log("hide step 1");
+    //   	  }
+    //   	}
+    // },	
+    // {
+    //   	id: "second",
+    //   	attachTo: {
+    //   	  element: "second-step",
+    //   	  on: "top"
+    //   	},
+    //   	text: [
+    //   	  "Yuk eksplorasi hasil Tes Minat Bakat-mu dan rekomendasi <b>Jurusan</b> dan Karier."
+    //   	],
+    //   	buttons: [
+    //   	  {
+    //   	    classes: "btn btn-info",
+    //   	    text: "Kembali",
+    //   	    type: "back"
+    //   	  },
+    //   	  {
+    //   	    classes: "btn btn-success",
+    //   	    text: "Saya Mengerti",
+    //   	    type: "cancel"
+    //   	  }
+    //   	],
+    //   	when: {
+    //   	  show: () => {
+    //   	    console.log("show stepp");
+    //   	  },
+    //   	  hide: () => {
+    //   	    console.log("complete step");
+    //   	  }
+    //   	},
+    //   	showCancelLink: false,
+    //   	scrollTo: true,
+    //   	modalOverlayOpeningPadding: 4,
+    //   	useModalOverlay: false,
+    //   	canClickTarget: false
+    // 	}
+    // ]
+
+    //  function TourButton() {
+    // 	  const tour = useContext(ShepherdTourContext);
+
+    // 	  return (
+    // 	    <Button variant="contained" color="primary" onClick={tour.start}>
+    // 	      Start Tour
+    // 	    </Button>
+    // 	  );
+    // 	}
+
+    useEffect(() => {
+        if (filteredWorkflows.length > 0) {
+
+            var categoryWorkflows = []
+            if (currTab === 0) {
+                categoryWorkflows = filteredWorkflows.filter(workflow => workflow?.org_id === userdata?.active_org?.id)
+
+				if (categoryWorkflows.length === 0) { 
+					setOrgWorkflows(filteredWorkflows)
+				} else {
+                	setOrgWorkflows(categoryWorkflows)
+				}
+            }
+            else if (currTab === 1) {
+                categoryWorkflows = filteredWorkflows.filter(workflow => workflow?.org_id === userdata?.active_org?.id && workflow?.owner === userdata?.id)
+                setMyWorkflows(categoryWorkflows)
+            }
+
+            setIsLoadingWorkflow(false);
+
+        } else {
+            if (currTab === 0 && workflows?.length > 0) {
+				setOrgWorkflows(workflows)
+			}
+		}
+    }, [currTab, workflows, userdata, filteredWorkflows, filters])
+
+
+
+
+
+
+    const handleCategoryChange = (e) => {
+        setSelectedCategory(e.target.value)
+    }
+
+
+    const iconButtonStyle = {
+        color: theme.palette.text.primary,
+        backgroundColor: theme.palette.platformColor,
+        borderRadius: '4px',
+        padding: "12px 16px",
+        cursor: 'pointer',
+        minWidth: '40px',
+        height: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+
+    }
+    
+    const iconButtonDisabledStyle = {
+        ...iconButtonStyle,
+        cursor: 'not-allowed',
+        opacity: 0.9, // Reduce opacity
+    }
+
+    const Hits = ({ hits, isSearchStalled, searchQuery }) => {
+
+        return (
+            isLoadingPublicWorkflow ? (
+                <LoadingWorkflowGrid />
+            ) : (
+                <div style={{
+                    marginTop: 16,
+                    width: "100%",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(365px, 1fr))",
+                    gap: "20px",
+                    justifyContent: "space-between",
+                    alignItems: "start",
+                    padding: "0 10px",
+                    paddingBottom: 40
+                }}>
+                    {hits.map((data, index) => {
+                        return <WorkflowPaper key={index} data={data} type="public" />
+                    })}
+                </div>
+            )
+        )
+    };
+
+    const SearchBox = ({ refine, searchQuery, setSearchQuery }) => {
+
+        const inputRef = useRef(null);
+        const [localQuery, setLocalQuery] = useState(searchQuery);
+        const location = useLocation();
+
+
+        useEffect(() => {
+            if (searchQuery) {
+                setLocalQuery(searchQuery);
+                refine(searchQuery);
+            }
+        }, [searchQuery, refine]);
+
+        // Debounced function to refine search
+        const debouncedRefine = useRef(
+            debounce((value) => {
+                setSearchQuery(value);
+                removeQuery("q");
+                refine(value);
+            }, 300)
+        ).current;
+
+        useEffect(() => {
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            const params = Object.fromEntries(urlSearchParams.entries());
+            const foundQuery = params["q"];
+            if (foundQuery) {
+                setLocalQuery(foundQuery);
+                debouncedRefine(foundQuery);
+            }
+        }, [debouncedRefine]);
+
+        useEffect(() => {
+            if (searchQuery === "") {
+                return;
+            }
+            if (inputRef.current) {
+                inputRef.current.focus();
+            }
+        }, [searchQuery]);
+
+        const handleChange = (event) => {
+            const value = event.target.value;
+            setLocalQuery(value);
+            debouncedRefine(value);
+        };
+
+        return (
+            <TextField
+                id="shuffle_search_field"
+                inputRef={inputRef}
+                style={{
+                    width: "25%",
+                    maxWidth: "25%",
+                    minWidth: "25%",
+                    height: 47,
+                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                }}
+                InputProps={{
+                    style: {
+                        color: theme.palette.textFieldStyle.color,
+                        height: "100%",
+                        backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                    },
+                    placeholder: "Search Workflows",
+                }}
+                sx={{
+                    '& .MuiOutlinedInput-root': {
+                        borderRadius: '4px',
+                        backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                    },
+                }}
+                value={localQuery}
+                onChange={handleChange}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                    }
+                }}
+                limit={5}
+                variant="outlined"
+                placeholder="Search Workflows"
+            />
+        )
+    }
+
+    const CustomSearchBox = connectSearchBox(SearchBox)
+    const CustomHits = connectHits(Hits)
+
+    const CategoryDropdown = ({ refine, currentRefinement, items }) => {
+
+        const handleChange = (event) => {
+            // Get the selected values array from the event
+            const selectedValues = event.target.value;
+            refine(selectedValues);
+        };
+
+        return (
+            <Select
+                fullWidth
+                variant="outlined"
+                displayEmpty
+                multiple
+                value={currentRefinement || []} 
+                onChange={handleChange}
+                style={{
+                    width: "25%",
+                    minWidth: "25%",
+                    maxWidth: "25%",
+                    height: 47,
+                    borderRadius: 4,
+                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                    fontFamily: theme.typography?.fontFamily,
+                    color: theme.palette.textFieldStyle.color, 
+                }}
+                MenuProps={{
+                    anchorOrigin: {
+                        vertical: 'bottom',
+                        horizontal: 'left',
+                    },
+                    transformOrigin: {
+                        vertical: 'top',
+                        horizontal: 'left',
+                    },
+                    PaperProps: {
+                        style: {
+                            backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                            color: theme.palette.textFieldStyle.color,
+                            fontFamily: theme.typography?.fontFamily,
+                        }
+                    }
+                }}
+                sx={{
+                    '& .MuiOutlinedInput-root': {
+                        '& fieldset': {
+                            borderColor: 'rgba(255, 255, 255, 0.23)',
+                        },
+                    },
+                }}
+                renderValue={(selected) => {
+                    if (!selected || selected.length === 0) return 'All Usecases';
+                    return selected.join(', ');
+                }}
+                endAdornment={
+                    (currentRefinement.length > 0 &&
+                        <InputAdornment position="end">
+
+                            <ClearIcon
+                                style={{
+                                    position: 'absolute',
+                                    right: 35,
+                                    top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    cursor: 'pointer',
+                                    color: 'white',
+                                    fontSize: 20,
+                                    zIndex: 1000
+                                }}
+                                onClick={() => refine([])}
+                            />
+                        </InputAdornment>
+                    )
+                }
+            >
+                <MenuItem disabled value="" style={{ fontFamily: theme.typography?.fontFamily, fontSize: 16 }}>
+                    All Usecases
+                </MenuItem>
+                {items.map((usecase, index) => (
+                    <MenuItem
+                        key={index} // Add key for each MenuItem
+                        value={usecase.label}
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            '&:hover': {
+                                backgroundColor: '#3A3A3A', // Darker background on hover
+                            },
+                            fontFamily: theme.typography?.fontFamily,
+                            fontSize: 16
+                        }}
+                    >
+                        <Checkbox
+                            checked={currentRefinement.includes(usecase.label)}
+                            style={{ marginRight: 8, fontSize: 16 }}
+                        />
+                        {usecase.label} ({usecase.count})
+                    </MenuItem>
+                ))}
+            </Select>
+        );
+    };
+    const CustomCategoryDropdown = connectRefinementList(CategoryDropdown)
+
+    const tabStyle = {
+        textTransform: 'none',
+        marginRight: 20,
+        fontFamily: theme.typography?.fontFamily,
+        fontSize: 16,
+        borderBottom: "5px solid transparent",
+        minHeight: "48px",
+        padding: "12px 16px",
+    }
+
+    const tabActive = {
+        borderBottom: `5px solid ${theme.palette.primary.main}`,
+        borderRadius: "2px",
+        color: theme.palette.primary.main
+    }
+
+
+    const WorkflowView = memo(() => {
+        if (workflows.length === 0) {
+        }
+
+        var workflowDelay = -150
+        var appDelay = -75
+
+        const foundPriority = userdata === undefined || userdata === null || userdata.priorities === undefined || userdata.priorities === null ? null : userdata.priorities.find(prio => prio.type === "usecase" && prio.active === true)
+        return (
+            <>
+                <InstantSearch searchClient={searchClient} indexName="workflows">
+                    <div style={{
+                        color: "white",
+                        display: "flex",
+                        flexDirection: "column",
+                        width: "100%",
+                        maxWidth: isSafari ? "100%" : "70%",
+                        margin: "auto",
+                    }}>
+                        <Typography variant="h4" color="textPrimary" style={{ marginBottom: 20, paddingLeft: 15, textTransform: 'none', fontFamily: theme.typography?.fontFamily }}>
+							{currTab === 0 ? "Org" : currTab === 1 ? "Your" : currTab === 2 ? "Discover" : "Security Bundle" } Workflows
+                        </Typography>
+
+                        <div style={{ borderBottom: themeMode === "dark" ? "1px solid #808080" : theme.palette.defaultBorder, marginBottom: 30 }}>
+                            <Tabs
+                                value={currTab}
+                                onChange={(event, newTab) => handleTabChange(event, newTab)}
+                                style={{
+                                    fontFamily: theme.typography?.fontFamily,
+                                    fontSize: 16,
+                                    marginBottom: "-2px"
+                                }}
+                                TabIndicatorProps={{ style: { display: 'none' } }}
+                            >
+                                <Tab
+                                    label="Org Workflows"
+                                    style={{
+                                        ...tabStyle,
+                                        ...(currTab === 0 ? tabActive : {})
+                                    }}
+                                />
+                                <Tab
+                                    label="My Workflows"
+                                    style={{
+                                        ...tabStyle,
+                                        ...(currTab === 1 ? tabActive : {})
+                                    }}
+                                />
+                                <Tab
+                                    label="Community Workflows"
+                                    style={{
+                                        ...tabStyle,
+                                        marginRight: 0,
+                                        ...(currTab === 2 ? tabActive : {})
+                                    }}
+                                />
+
+								{backupWorkflows.length > 0 &&
+									<Tab
+										label={`Onprem Backup (${backupWorkflows.length})`}
+										value={3}
+										style={{
+											...tabStyle,
+											borderLeft: "1px solid rgba(255,255,255,0.3)",
+											marginLeft: 25, 
+											...(currTab === 3 ? tabActive : {})
+										}}
+									/>
+								}
+
+								{backgroundWorkflows.length > 0 &&
+									<Tab
+										label={`Security Bundle`}
+										value={4}
+										style={{
+											...tabStyle,
+											borderLeft: "1px solid rgba(255,255,255,0.3)",
+											borderRight: "1px solid rgba(255,255,255,0.3)",
+											marginLeft: 25, 
+											...(currTab === 4 ? tabActive : {})
+										}}
+									/>
+								}
+
+                                <Tab
+                                    label="Org Forms"
+									value={5}
+									onClick={() => {
+										navigate("/forms")
+									}}
+                                    style={{
+                                        ...tabStyle,
+                                        marginRight: 0,
+										marginLeft: 25, 
+                                        ...(currTab === 5 ? tabActive : {})
+                                    }}
+                                />
+                            </Tabs>
+                        </div>
+
+
+						{currTab === 4 ? null : 
+                        	<div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginBottom: 20, paddingRight: 25, minHeight: 47 }}>
+
+                        	    {currTab === 2 ? (
+                        	        <CustomSearchBox
+                        	            searchQuery={searchQuery}
+                        	            setSearchQuery={setSearchQuery}
+                        	        />
+                        	    ) : 
+									(
+                        	        <MuiChipsInput
+                        	            style={{
+                        	                width: "25%",
+                        	                maxWidth: "25%",
+                        	                minWidth: "25%",
+                        	                height: 43,
+                        	                maxHeight: "fit-content",
+                        	                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                        	                    zIndex: 1000,
+                        	                color: theme.palette.textFieldStyle.color
+                        	            }}
+                        	            disabled={currTab === 2}
+                        	            InputProps={{
+                        	                style: {
+                        	                    height: "fit-content",
+                        	                    maxHeight: "fit-content",
+                        	                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                        	                    color: theme.palette.textFieldStyle.color
+                        	                },
+                        	                placeholder: "Filter Workflows",
+                        	                // endAdornment: (
+                        	                //     <InputAdornment position="end">
+                        	                //         <SearchIcon style={{ color: 'white', paddingRight: 5 }} />
+                        	                //     </InputAdornment>
+                        	                // ),
+                        	                onKeyDown: (e) => {
+                        	                    // Prevent default behavior for Enter and Backspace
+                        	                    if (e.key === 'Enter' || e.key === 'Backspace') {
+                        	                        e.preventDefault();
+                        	                        e.stopPropagation();
+                        	                        e.target.focus();
+                        	                    }
+                        	                },
+                        	            }}
+                        	            clearInputOnBlur={false}
+                        	            sx={{
+                        	                // Container styling
+                        	                '& .MuiOutlinedInput-root': {
+                        	                    height: "fit-content",
+                        	                    borderRadius: '4px',
+                        	                    color: theme.palette.textFieldStyle.color,
+                        	                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                        	                    '& fieldset': {
+                        	                        borderColor: 'rgba(255, 255, 255, 0.23)',
+                        	                    },
+                        	                    '&:hover fieldset': {
+                        	                        borderColor: 'rgba(255, 255, 255, 0.4)',
+                        	                    },
+                        	                },
+
+                        	                // Adjust chip container to center vertically
+                        	                '& .MuiInputBase-root': {
+                        	                    display: 'flex',
+                        	                    flexWrap: 'wrap',
+                        	                    gap: '4px',
+                        	                    fontSize: 18,
+                        	                    padding: '4px 8px',
+                        	                    alignItems: 'center',
+                        	                    height: "fit-content", // Match height
+                        	                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                        	                    color: theme.palette.textFieldStyle.color
+                        	                },
+
+                        	                // Rest of the styling remains the same...
+                        	            }}
+                        	            value={filters}
+                        	            onChange={(chips) => {
+                        	                setFilters(chips);
+                        	                const remainingCategories = chips.map(chip => {
+                        	                    const match = chip.match(/\d+\.\s+(\w+)/i);
+                        	                    return match ? match[1] : chip;
+                        	                }).filter(category => {
+                        	                    return usecases.some(usecase =>
+                        	                        usecase.name.toLowerCase().includes(category.toLowerCase())
+                        	                    );
+                        	                });
+
+                        	                setSelectedCategory(remainingCategories);
+                        	                findWorkflow(chips);
+
+                        	            }}
+                        	        //onAdd={(chip) => {
+                        	        //	console.log("ADd: ", chip);
+                        	        //	addFilter(chip);
+                        	        //}}
+                        	        //onDelete={(_, index) => {
+                        	        //	console.log("Remove: ", index);
+                        	        //	removeFilter(index);
+                        	        //}}
+                        	        />
+                        	    )}
+
+                        	    {
+                        	        currTab !== 2 && (
+                        	            <Select
+                        	                fullWidth
+                        	                variant="outlined"
+                        	                value={selectedCategory}
+                        	                onChange={handleCategoryChange}
+                        	                displayEmpty
+                        	                disabled={currTab === 2}
+                        	                multiple
+                        	                style={{
+                        	                    width: "25%",
+                        	                    minWidth: "25%",
+                        	                    maxWidth: "25%",
+                        	                    height: 47,
+                        	                    borderRadius: 4,
+                        	                    fontSize: 18,
+                        	                    backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                        	                    fontFamily: theme.typography?.fontFamily,
+                        	                }}
+                        	                sx={{
+                        	                    '& .MuiOutlinedInput-root': {
+                        	                        '& fieldset': {
+                        	                            borderColor: 'rgba(255, 255, 255, 0.23)',
+                        	                        },
+                        	                    },
+                        	                }}
+                        	                renderValue={(selected) => selected.length ? selected.join(', ') : 'All Categories'}
+                        	            >
+                        	                <MenuItem disabled value="">
+                        	                    All Categories
+                        	                </MenuItem>
+                        	                {usecases.map((usecase, index) => {
+                        	                    if (usecase?.name === "5. Verify") {
+                        	                        return null;
+                        	                    }
+
+                        	                    const percentDone = usecase.matches.length > 0 ? parseInt(usecase.matches.length / usecase.list.length * 100) : 0
+                        	                    if (percentDone === 0) {
+                        	                        usecase = findMatches(usecase, workflows)
+                        	                    }
+
+                        	                    const category = usecase?.name.split(" ")[1]
+                        	                    return (
+                        	                        <MenuItem
+                        	                            value={category}
+                        	                            onClick={() => {
+                        	                                if (!filters.includes(usecase?.name.toLowerCase())) {
+                        	                                    addFilter(usecase.name)
+                        	                                } else {
+                        	                                    removeFilter(filters.indexOf(usecase?.name.toLowerCase()))
+                        	                                }
+                        	                            }}
+                        	                            sx={{
+                        	                                padding: "12px 16px",
+                        	                                borderBottom: index === usecases.length - 2 ? "none" : "1px solid rgba(255,255,255,0.05)",
+                        	                                "&:hover": {
+                        	                                    backgroundColor: "rgba(255,255,255,0.1)"
+                        	                                },
+                        	                            }}
+                        	                        >
+                        	                            <div style={{
+                        	                                display: "flex",
+                        	                                alignItems: "center",
+                        	                                width: "100%",
+                        	                                gap: "12px"
+                        	                            }}>
+                        	                                <Checkbox
+                        	                                    checked={selectedCategory.includes(category)}
+                        	                                    style={{
+                        	                                        padding: 0,
+                        	                                        marginRight: 8,
+                        	                                        color: theme.palette.textFieldStyle.color,
+                        	                                    }}
+                        	                                />
+                        	                                <div style={{
+                        	                                    display: "flex",
+                        	                                    justifyContent: "space-between",
+                        	                                    alignItems: "center",
+                        	                                    width: "100%"
+                        	                                }}>
+                        	                                    <Typography
+                        	                                        variant="body1"
+                        	                                        style={{
+                        	                                            color: theme.palette.textFieldStyle.color,
+                        	                                            fontWeight: selectedCategory.includes(category) ? 500 : 400
+                        	                                        }}
+                        	                                    >
+                        	                                        {category}
+                        	                                    </Typography>
+                        	                                    <Typography
+                        	                                        variant="body2"
+                        	                                        style={{
+                        	                                            color: theme.palette.textFieldStyle.color,
+                        	                                            backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                        	                                            padding: "2px 8px",
+                        	                                            borderRadius: "12px",
+                        	                                            fontSize: "0.75rem"
+                        	                                        }}
+                        	                                    >
+                        	                                        {usecase?.matches.length}/{usecase?.list.length}
+                        	                                    </Typography>
+                        	                                </div>
+                        	                            </div>
+                        	                        </MenuItem>
+                        	                    )
+                        	                })}
+                        	            </Select>
+                        	        )
+                        	    }
+                        	    {
+                        	        currTab === 2 && (
+                        	            <CustomCategoryDropdown attribute="usecase_ids" limit={20} />
+                        	        )
+                        	    }
+
+                        	    <div style={{ width: "50%", minWidth: "50%", maxWidth: "50%", height: 47, display: "flex", gap: 5 }}>
+                        	        <div style={{
+                        	            display: "flex",
+                        	            height: "100%",
+                        	            justifyContent: "space-around",
+                        	            flex: 0.7,
+                        	            paddingLeft: 1,
+                        	            paddingRight: 1,
+                        	            gap: 4
+                        	        }}>
+
+                        	            <Tooltip title="Show/Hide Workflow Runs for top workflows" placement="top">
+                        	                <IconButton
+                        	                    style={currTab === 2 ? iconButtonDisabledStyle : {...iconButtonStyle, color: showExecutionStats ? "#1a1a1a" : theme.palette.text.primary, background: showExecutionStats ? theme.palette.primary.main : theme.palette.platformColor}}
+                        	                    onClick={() => {
+
+                        	                        const newView = !showExecutionStats
+                        	                        localStorage.setItem("showExecutionStats", newView)
+													setShowExecutionStats(!showExecutionStats)
+												}}
+                        	                    disabled={currTab === 2}
+                        	                >
+                        	                    <BarChartIcon />
+                        	                </IconButton>
+                        	            </Tooltip>
+
+										<Tooltip title="Show/Hide Workflow image" placement="top">
+                        	                <IconButton
+                        	                    style={currTab === 2 ? iconButtonDisabledStyle : {...iconButtonStyle, color: showWorkflowImages ? "#1a1a1a" : theme.palette.text.primary, background: showWorkflowImages ? theme.palette.primary.main : theme.palette.platformColor}}
+                        	                    onClick={() => {
+
+                        	                        const newView = !showWorkflowImages
+                        	                        localStorage.setItem("showWorkflowImages", newView)
+													setShowWorkflowImages(!showWorkflowImages)
+												}}
+                        	                    disabled={currTab === 2}
+                        	                >
+												<ImageIcon />
+                        	                </IconButton>
+                        	            </Tooltip>
+
+                        	            <Tooltip title="Explore Workflow Runs (debugger)" placement="top">
+                        	                <IconButton
+                        	                    style={currTab === 2 ? iconButtonDisabledStyle : iconButtonStyle}
+                        	                    onClick={() => navigate("/workflows/debug")}
+                        	                    disabled={currTab === 2}
+                        	                >
+                        	                    <QueryStatsIcon style={{ color: theme.palette.text.primary, opacity: currTab === 2 ? 0.5 : 1 }} />
+                        	                </IconButton>
+                        	            </Tooltip>
+
+                        	            <Tooltip title={view === "grid" ? "List view (Org Workflows only)" : "Grid view"} placement="top">
+                        	                <IconButton
+                        	                    style={currTab === 2 ? iconButtonDisabledStyle : iconButtonStyle}
+                        	                    onClick={() => {
+                        	                        const newView = view === "grid" ? "list" : "grid";
+                        	                        localStorage.setItem("workflowView", newView);
+                        	                        setView(newView);
+
+													if (view === "grid") {
+														setCurrTab(0)
+													}
+                        	                    }}
+                        	                    disabled={currTab === 2}
+                        	                >
+                        	                    {view === "grid" ?
+                        	                        <ListIcon style={{ color: theme.palette.text.primary, opacity: currTab === 2 ? 0.5 : 1 }} /> :
+                        	                        <GridOnIcon style={{ color: theme.palette.text.primary, opacity: currTab === 2 ? 0.5 : 1 }} />
+                        	                    }
+                        	                </IconButton>
+                        	            </Tooltip>
+
+                        	            <Tooltip title="Import workflows" placement="top">
+                        	                <IconButton
+                        	                    style={currTab === 2 ? iconButtonDisabledStyle : iconButtonStyle}
+                        	                    onClick={() => upload.click()}
+                        	                    disabled={currTab === 2}
+                        	                >
+                        	                    {submitLoading ?
+                        	                        <CircularProgress color="secondary" /> :
+                        	                        <PublishIcon style={{ color: theme.palette.text.primary, opacity: currTab === 2 ? 0.5 : 1}} />
+                        	                    }
+                        	                </IconButton>
+                        	            </Tooltip>
+
+                        	            <input
+                        	                hidden
+                        	                type="file"
+                        	                multiple="multiple"
+                        	                ref={(ref) => (upload = ref)}
+                        	                onChange={importFiles}
+                        	            />
+
+                        	            <Tooltip title={`Download ALL workflows (${workflows.length})`} placement="top">
+                        	                <IconButton
+                        	                    style={(currTab === 2) ? iconButtonDisabledStyle : { ...iconButtonStyle, cursor: "pointer" }}
+                        	                    disabled={currTab === 2}
+                        	                    onClick={() => exportAllWorkflows(workflows)}
+                        	                >
+                        	                    <GetAppIcon style={{ color: theme.palette.text.primary, opacity: currTab === 2 ? 0.5 : 1}} />
+                        	                </IconButton>
+                        	            </Tooltip>
+                                        <Tooltip title="Import workflows from URL" placement="top">
+                                            <IconButton
+                                                style={currTab === 2 ? iconButtonDisabledStyle : iconButtonStyle}
+                                                onClick={() => setLoadWorkflowsModalOpen(true)}
+                                                disabled={currTab === 2}
+                                            >
+                                                <CloudDownloadIcon style={{ color: theme.palette.text.primary, opacity: currTab === 2 ? 0.5 : 1}} />
+                                            </IconButton>
+                                        </Tooltip>
+                        	        </div>
+                        	        <Button
+                        	            variant="contained"
+                        	            color="primary"
+                        	            onClick={handleCreateWorkflow}
+                        	            id="create_workflow_button"
+                        	            style={{
+                        	                borderRadius: 4,
+                        	                flex: 0.8,
+                        	                textTransform: 'none',
+                        	                fontFamily: theme.typography?.fontFamily,
+                        	                fontSize: 16,
+                        	                fontWeight: 500
+                        	            }}
+                        	            startIcon={<AddIcon />}
+                        	        >
+                        	            Create Workflow
+                        	        </Button>
+                        	    </div>
+                        	</div>
+						}
+						
+						{!isCloud && (currentOrg?.old_org || isProdStatusOn) ? (
+						  <div
+							style={{
+							  position: "absolute",
+							  top: 20,
+							  right: 20,
+							}}
+						  >
+							<Licensed
+							  licensed={isProdStatusOn}
+                              showBadge={true}
+							/>
+						  </div>
+					  ) : null}
+
+                        <div style={{
+                            width: "100%",
+                            position: "relative",
+                            zIndex: 1
+                        }}>
+
+
+                            {
+                                (isLoadingWorkflow && currTab !== 2) ? (
+                                    <LoadingWorkflowGrid />
+                                ) : (
+                                    view === "grid" && currTab !== 2 ? (
+                                        <>
+											{currTab === 4 && backgroundWorkflows.map((data, index) => {
+												if (data.triggers.length === 0) {
+													return null
+												}
+
+												var foundWebhook = ""
+												var foundtrigger = {}
+												for (var triggerKey in data.triggers) {
+													if (data.triggers[triggerKey].trigger_type === "WEBHOOK") {
+														foundWebhook = `${globalUrl}/api/v1/hooks/webhook_${data.triggers[triggerKey].id}`
+														foundtrigger = data.triggers[triggerKey]
+														break
+													}
+												}
+
+												if (foundWebhook === "") {
+													return null
+												}
+
+												var webhookName = ``
+												if (data?.name?.toLowerCase().includes("ingest tickets")) {
+													webhookName = "Send your Tickets, Alerts, Cases and Detections here. This will ingest them into Shuffle."
+												}
+
+												return (
+													<div style={{padding: 50, }} 
+														onMouseEnter={() => {
+															// Find the relevant workflow paper and highlight it
+															const foundElement = document.getElementById(`workflowbox-${data.id}`)
+															if (foundElement) {
+																foundElement.style.border = `3px solid ${theme.palette.primary.main}`
+															}
+														}}
+														onMouseLeave={() => {
+															const foundElement = document.getElementById(`workflowbox-${data.id}`)
+															if (foundElement) {
+																foundElement.style.border = null
+															}
+														}}
+													>
+														<Typography variant="body1" style={{ marginBottom: 10, fontFamily: theme.typography?.fontFamily, display: "flex", alignItems: "center", gap: 10 }}>
+															{webhookName} 
+														</Typography>
+
+														<TextField
+															value={foundWebhook}
+															readOnly
+															fullWidth
+															disabled
+
+															// Add start adornment with webhook icon
+															InputProps={{
+																startAdornment: (
+																	<InputAdornment position="start">
+																		<img 
+																			alt="webhook" 
+																			src={wfTriggers[0].large_image} 
+																			style={{
+																				width: 40, 
+																				height: 40,
+																				marginRight: 20,
+																				border: foundtrigger.status === "Running" || foundtrigger.status === "running" ? `2px solid ${green}` : `2px solid ${red}`,
+																				borderRadius: theme.palette.borderRadius,
+																			}}
+																		/>
+
+																		<Tooltip title={"Copy to clipboard"} placement="top">
+																			<IconButton
+																				onClick={() => {
+																					if (navigator.clipboard === undefined) {
+																						toast("Your browser doesn't support clipboard copying, please copy manually.", { type: "error" });
+																					} else {
+																						navigator.clipboard.writeText(foundWebhook);
+																					}
+																				}}
+																				style={{
+																					color: theme.palette.textFieldStyle.color,
+																					backgroundColor: theme.palette.platformColor,
+																					marginRight: 10,
+																					borderRadius: 4,
+																				}}
+																				id="copy_webhook_url_button"
+																			>
+																				<ContentCopyIcon style={{ color: theme.palette.textFieldStyle.color }} />
+																			</IconButton>
+																		</Tooltip>
+																	</InputAdornment>
+																),
+																style: {
+																	color: theme.palette.textFieldStyle.color,
+																	backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+																}
+															}}
+														/>
+													</div>
+												)
+											})}
+
+											<div style={{
+                                                marginTop: 32,
+                                                width: "100%",
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(auto-fill, minmax(365px, 1fr))",
+                                                gap: "20px",
+                                                justifyContent: "space-between",
+                                                alignItems: "start",
+                                                padding: "0 10px",
+                                                paddingBottom: 40
+                                            }}>
+
+                                                {currTab !== 0 ? null :
+														orgWorkflows.length === 0 ? 
+														<Typography variant="h6" style={{margin: "auto", minWidth: 500, }} >
+															No workflows found in this org with the Org ID filter. If this is an error, please click the "List View" button at the top to see ALL available workflows ({workflows.length}). 
+														</Typography> :
+													orgWorkflows.map((data, index) => {
+														// Shouldn't be a part of this list
+														if (data.public === true) {
+															return null
+														}
+
+														// if (firstLoad) {
+														//     workflowDelay += 75
+														// } else {
+														//     return <WorkflowPaper key={index} data={data} />
+														// }
+
+														return (
+															<span key={index}>
+																{/*<Zoom key={index} in={true} style={{ transitionDelay: `${workflowDelay}ms` }}>*/}
+																<WorkflowPaper data={data} />
+																{/*</Zoom>*/}
+															</span>
+														)
+                                                })}
+
+                                                {currTab === 3 && backupWorkflows.map((data, index) => {
+                                                    // Shouldn't be a part of this list
+                                                    if (data.public === true) {
+                                                        return null
+                                                    }
+
+                                                    // if (firstLoad) {
+                                                    //     workflowDelay += 75
+                                                    // } else {
+                                                    //     return <WorkflowPaper key={index} data={data} />
+                                                    // }
+
+                                                    return (
+                                                        <span key={index}>
+                                                            {/*<Zoom key={index} in={true} style={{ transitionDelay: `${workflowDelay}ms` }}>*/}
+                                                            <WorkflowPaper data={data} />
+                                                            {/*</Zoom>*/}
+                                                        </span>
+                                                    )
+                                                })}
+
+                                                {currTab === 4 && backgroundWorkflows.map((data, index) => {
+                                                    // Shouldn't be a part of this list
+                                                    if (data.public === true) {
+                                                        return null
+                                                    }
+
+                                                    // if (firstLoad) {
+                                                    //     workflowDelay += 75
+                                                    // } else {
+                                                    //     return <WorkflowPaper key={index} data={data} />
+                                                    // }
+
+                                                    return (
+                                                        <span key={index}>
+                                                            {/*<Zoom key={index} in={true} style={{ transitionDelay: `${workflowDelay}ms` }}>*/}
+                                                            <WorkflowPaper data={data} />
+                                                            {/*</Zoom>*/}
+                                                        </span>
+                                                    )
+                                                })}
+
+
+                                                {
+                                                    currTab !== 1 ? null :
+														myWorkflows.length === 0 ? 
+														<Typography variant="h6" style={{margin: "auto", width: 500, }} >
+															No workflows found in this org for your user. 
+														</Typography> :
+														myWorkflows.map((data, index) => {
+															if (data.public === true) {
+																return null
+															}
+
+															// if (firstLoad) {
+															//     workflowDelay += 75
+															// } else {
+															//     return <WorkflowPaper key={index} data={data} />
+															// }
+
+															return (
+																<span key={index}>
+																	{/*<Zoom key={index} in={true} style={{ transitionDelay: `${workflowDelay}ms` }}>*/}
+																	<WorkflowPaper data={data} />
+																	{/*</Zoom>*/}
+																</span>
+															)
+                                                    })
+                                                }
+                                            </div>
+                                        </>
+                                    ) : (
+                                        currTab !== 2 && <WorkflowListView />
+                                    )
+                                )
+                            }
+
+                            {
+                                currTab === 2 &&
+                                (
+                                    <CustomHits hitsPerPage={5} searchQuery={searchQuery} type="public" />
+                                )
+                            }
+
+                        </div>
+                    </div>
+                    <Configure clickAnalytics />
+                </InstantSearch>
+            </>
+
+        );
+    });
+
+    const listRemoteWorkflows = () => {
+        const parsedData = {
+            url: downloadUrl,
+            branch: downloadBranch || "master",
+            list_only: true,
+        };
+        if (field1.length > 0) parsedData["username"] = field1;
+        if (field2.length > 0) parsedData["password"] = field2;
+
+        setRemoteWorkflowsLoading(true);
+        fetch(globalUrl + "/api/v1/workflows/download_remote", {
+            method: "POST",
+            mode: "cors",
+            headers: { Accept: "application/json" },
+            body: JSON.stringify(parsedData),
+            credentials: "include",
+        })
+            .then((r) => r.json())
+            .then((responseJson) => {
+                setRemoteWorkflowsLoading(false);
+                if (responseJson.success && Array.isArray(responseJson.workflows)) {
+                    setRemoteWorkflows(responseJson.workflows);
+                    setLoadWorkflowsModalOpen(false);
+                    setSyncListModalOpen(true);
+                } else {
+                    toast("Failed to list remote workflows: " + (responseJson.reason || "Unknown error"));
+                }
+            })
+            .catch((err) => {
+                setRemoteWorkflowsLoading(false);
+                toast(err.toString());
+            });
+    };
+
+    const handleRemoteWorkflowAction = (remoteWf, action) => {
+        const parsedData = {
+            url: downloadUrl,
+            branch: downloadBranch || "master",
+            original_workflow_id: remoteWf.id,
+        };
+        if (action === "sync") {
+            parsedData["sync_to_id"] = remoteWf.org_workflow_id || remoteWf.id;
+        }
+        if (field1.length > 0) parsedData["username"] = field1;
+        if (field2.length > 0) parsedData["password"] = field2;
+
+        toast(action === "sync" ? `Syncing "${remoteWf.name}"...` : `Importing "${remoteWf.name}"...`);
+        fetch(globalUrl + "/api/v1/workflows/download_remote", {
+            method: "POST",
+            mode: "cors",
+            headers: { Accept: "application/json" },
+            body: JSON.stringify(parsedData),
+            credentials: "include",
+        })
+            .then((r) => r.json())
+            .then((responseJson) => {
+                if (responseJson.success) {
+                    toast.success(action === "sync" ? `"${remoteWf.name}" synced successfully` : `"${remoteWf.name}" imported successfully`);
+                    // Refresh org workflow list and update local exists_in_org state
+                    getAvailableWorkflows();
+                    setRemoteWorkflows((prev) =>
+                        prev.map((w) =>
+                            w.id === remoteWf.id ? { ...w, exists_in_org: true, org_workflow_id: w.id } : w
+                        )
+                    );
+                } else {
+                    toast("Failed: " + (responseJson.reason || "Unknown error"));
+                }
+            })
+            .catch((err) => toast(err.toString()));
+    };
+
+    const importWorkflowsFromUrl = (url) => {
+        console.log("IMPORT WORKFLOWS FROM ", downloadUrl);
+
+        const parsedData = {
+            url: url,
+            branch: downloadBranch || "master",
+        };
+
+        if (field1.length > 0) {
+            parsedData["username"] = field1;
+        }
+
+        if (field2.length > 0) {
+            parsedData["password"] = field2;
+        }
+
+        toast("Getting specific workflows from your URL.");
+        fetch(globalUrl + "/api/v1/workflows/download_remote", {
+            method: "POST",
+            mode: "cors",
+            headers: {
+                Accept: "application/json",
+            },
+            body: JSON.stringify(parsedData),
+            credentials: "include",
+        })
+            .then((response) => {
+                if (response.status === 200) {
+                    toast("Successfully loaded workflows from " + downloadUrl);
+                    setTimeout(() => {
+                        getAvailableWorkflows();
+                    }, 1000);
+                }
+
+                return response.json();
+            })
+            .then((responseJson) => {
+                if (!responseJson.success) {
+                    if (responseJson.reason !== undefined) {
+                        toast("Failed loading: " + responseJson.reason);
+                    } else {
+                        toast("Failed loading");
+                    }
+                }
+            })
+            .catch((error) => {
+                toast(error.toString());
+            });
+    };
+
+    const handleGithubValidation = () => {
+        if (syncMode) {
+            listRemoteWorkflows();
+        } else {
+            importWorkflowsFromUrl(downloadUrl);
+            setLoadWorkflowsModalOpen(false);
+        }
+    }
+
+    const workflowDownloadModalOpen = loadWorkflowsModalOpen ? (
+        <Dialog
+            open={loadWorkflowsModalOpen}
+            onClose={() => { }}
+            PaperProps={{
+                sx: {
+                      borderRadius: theme?.palette?.DialogStyle?.borderRadius,
+                      border: theme?.palette?.DialogStyle?.border,
+                      minWidth: '440px',
+                      fontFamily: theme?.typography?.fontFamily,
+                      backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                      zIndex: 1000,
+                      '& .MuiDialogContent-root': {
+                        backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                      },
+                      '& .MuiDialogTitle-root': {
+                        backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                      },
+                      '& .MuiDialogActions-root': {
+                        backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                       },
+                }
+            }}
+        >
+            <DialogTitle>
+                <div style={{ color: theme.palette.text.primary }}>
+                    Load workflows from a remote repository
+                    <div style={{ float: "right" }}>
+                        <Tooltip color="primary" title={"Import manually"} placement="top">
+                            <Button
+                                color="primary"
+                                style={{}}
+                                variant="text"
+                                onClick={() => upload.click()}
+                            >
+                                <PublishIcon />
+                            </Button>
+                        </Tooltip>
+                    </div>
+                </div>
+            </DialogTitle>
+            <DialogContent style={{ color: theme.palette.text.primary }}>
+                Repository (supported: github, gitlab, bitbucket, azure devops):
+                <TextField
+                    style={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.textFieldStyle.color, borderRadius: theme.palette.textFieldStyle.borderRadius, height: theme.palette.textFieldStyle.height, border: theme.palette.textFieldStyle.border, }}
+                    variant="outlined"
+                    margin="normal"
+                    defaultValue={downloadUrl}
+                    InputProps={{
+                        style: {
+                            color: theme.palette.textFieldStyle.color,
+                            height: theme.palette.textFieldStyle.height,
+                            fontSize: "1em",
+                        },
+                    }}
+                    onChange={(e) => setDownloadUrl(e.target.value)}
+                    placeholder="https://github.com/shuffle/workflows"
+                    fullWidth
+                />
+                <span style={{ marginTop: 10 }}>
+                    Branch (default value is "main"):
+                </span>
+                <div style={{ display: "flex" }}>
+                    <TextField
+                        style={{ backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.textFieldStyle.color, borderRadius: theme.palette.textFieldStyle.borderRadius, height: theme.palette.textFieldStyle.height, border: theme.palette.textFieldStyle.border, }}
+                        variant="outlined"
+                        margin="normal"
+                        defaultValue={downloadBranch}
+                        InputProps={{
+                            style: {
+                                color: theme.palette.textFieldStyle.color,
+                                height: theme.palette.textFieldStyle.height,
+                                backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                                fontSize: "1em",
+                            },
+                        }}
+                        onChange={(e) => setDownloadBranch(e.target.value)}
+                        placeholder="main"
+                        fullWidth
+                    />
+                </div>
+                <span style={{ marginTop: 10 }}>
+                    Authentication for private repositories (optional):
+                </span>
+                <div style={{ display: "flex" }}>
+                    <TextField
+                        style={{ flex: 1, backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.textFieldStyle.color, borderRadius: theme.palette.textFieldStyle.borderRadius, height: theme.palette.textFieldStyle.height, border: theme.palette.textFieldStyle.border, }}
+                        variant="outlined"
+                        margin="normal"
+                        InputProps={{
+                            style: {
+                                color: theme.palette.textFieldStyle.color,
+                                height: theme.palette.textFieldStyle.height,
+                                backgroundColor: theme.palette.textFieldStyle.backgroundColor,
+                                fontSize: "1em",
+                            },
+                        }}
+                        onChange={(e) => setField1(e.target.value)}
+                        type="username"
+                        placeholder="Username / APIkey (optional)"
+                        fullWidth
+                    />
+                    <TextField
+                        style={{ flex: 1, backgroundColor: theme.palette.textFieldStyle.backgroundColor, color: theme.palette.textFieldStyle.color, borderRadius: theme.palette.textFieldStyle.borderRadius, height: theme.palette.textFieldStyle.height, border: theme.palette.textFieldStyle.border, }}
+                        variant="outlined"
+                        margin="normal"
+                        InputProps={{
+                            style: {
+                                color: theme.palette.textFieldStyle.color   ,
+                                height: theme.palette.textFieldStyle.height,
+                                fontSize: "1em",
+                            },
+                        }}
+                        onChange={(e) => setField2(e.target.value)}
+                        type="password"
+                        placeholder="Password (optional)"
+                        fullWidth
+                    />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+                    <FormControlLabel
+                        control={
+                            <Switch
+                                checked={syncMode}
+                                onChange={(e) => setSyncMode(e.target.checked)}
+                                color="primary"
+                            />
+                        }
+                        label={
+                            <Typography variant="body2" style={{ color: theme.palette.text.primary }}>
+                                Sync — list workflows before importing
+                            </Typography>
+                        }
+                    />
+                </div>
+            </DialogContent>
+            <DialogActions>
+                <Button
+                    style={{ borderRadius: "0px" }}
+                    onClick={() => setLoadWorkflowsModalOpen(false)}
+                    color="primary"
+                >
+                    Cancel
+                </Button>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    disabled={downloadUrl.length === 0 || !downloadUrl.includes("http") || remoteWorkflowsLoading}
+                    onClick={() => {
+                        handleGithubValidation();
+                    }}
+                >
+                    {remoteWorkflowsLoading ? <CircularProgress size={20} color="inherit" /> : (syncMode ? "List & Sync" : "Submit")}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    ) : null;
+
+    const syncListModal = syncListModalOpen ? (
+        <Dialog
+            open={syncListModalOpen}
+            onClose={() => setSyncListModalOpen(false)}
+            PaperProps={{
+                sx: {
+                    borderRadius: theme?.palette?.DialogStyle?.borderRadius,
+                    border: theme?.palette?.DialogStyle?.border,
+                    minWidth: "700px",
+                    maxWidth: "900px",
+                    fontFamily: theme?.typography?.fontFamily,
+                    backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    zIndex: 1000,
+                    '& .MuiDialogContent-root': {
+                        backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    },
+                    '& .MuiDialogTitle-root': {
+                        backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    },
+                    '& .MuiDialogActions-root': {
+                        backgroundColor: theme?.palette?.DialogStyle?.backgroundColor,
+                    },
+                }
+            }}
+        >
+            <DialogTitle>
+                <div style={{ color: theme.palette.text.primary, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span>Workflows from remote repository</span>
+                    <IconButton size="small" onClick={() => setSyncListModalOpen(false)}>
+                        <CloseIcon />
+                    </IconButton>
+                </div>
+            </DialogTitle>
+            <DialogContent style={{ color: theme.palette.text.primary, paddingTop: 0 }}>
+                {remoteWorkflows.length === 0 ? (
+                    <Typography variant="body2" style={{ marginTop: 8 }}>No workflow JSON files found in the repository.</Typography>
+                ) : (
+                    <TableContainer>
+                        <Table size="small">
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell style={{ color: theme.palette.text.primary, fontWeight: 600 }}>Name</TableCell>
+                                    {/* <TableCell style={{ color: theme.palette.text.primary, fontWeight: 600 }}>Folder</TableCell> */}
+                                    <TableCell style={{ color: theme.palette.text.primary, fontWeight: 600 }}>Last Updated</TableCell>
+                                    <TableCell style={{ color: theme.palette.text.primary, fontWeight: 600 }} align="right">Action</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {remoteWorkflows.map((wf) => (
+                                    <TableRow key={wf.id}>
+                                        <TableCell style={{ color: theme.palette.text.primary }}>{wf.name}</TableCell>
+                                        {/* <TableCell style={{ color: theme.palette.text.secondary }}>{wf.folder_name || "—"}</TableCell> */}
+                                        <TableCell style={{ color: theme.palette.text.secondary }}>
+                                            {wf.updated_at && wf.updated_at > 0
+                                                ? new Date(wf.updated_at * 1000).toLocaleDateString()
+                                                : "—"}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {wf.exists_in_org ? (
+                                                <Button
+                                                    variant="outlined"
+                                                    color="primary"
+                                                    size="small"
+                                                    startIcon={<CachedIcon />}
+                                                    onClick={() => handleRemoteWorkflowAction(wf, "sync")}
+                                                >
+                                                    Sync
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="contained"
+                                                    color="primary"
+                                                    size="small"
+                                                    startIcon={<CloudDownloadIcon />}
+                                                    onClick={() => handleRemoteWorkflowAction(wf, "import")}
+                                                >
+                                                    Import
+                                                </Button>
+                                            )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
+            </DialogContent>
+            <DialogActions>
+                <Button onClick={() => setSyncListModalOpen(false)} color="primary">
+                    Close
+                </Button>
+            </DialogActions>
+        </Dialog>
+    ) : null;
+
+    //const 
+    //const [percentDone, setPercentDone] = React.useState(0)
+    const percentDone = gettingStartedItems.filter((item) => item.done).length / gettingStartedItems.length * 100
+
+    const GettingStartedItem = ({ item, index }) => {
+        const [clicked, setClicked] = React.useState(false)
+        const doneIcon = item.done ? <CheckCircleIcon style={{ color: "#4caf50", marginRight: 10, }} /> : <RadioButtonUncheckedIcon disabled style={{ color: "#bdbdbd", marginRight: 10, }} />
+
+        return (
+            <div
+                style={{ cursor: "pointer", padding: 20, borderBottom: "1px solid rgba(255,255,255,0.3", backgroundColor: !clicked ? "#1f2023" : theme.palette.inputColor, }}
+                onClick={() => setClicked(true)}
+            >
+                <Typography variant="body2" style={{ display: "flex", textDecoration: item.done ? "line-through" : "none", }}>
+                    {doneIcon} {index + 1}. {item.name}
+                </Typography>
+                {clicked ?
+                    <span>
+                        <Typography variant="body2" style={{ marginLeft: 30, }}>
+                            {item.description}
+                        </Typography>
+                        <Link to={item.link} style={{ color: "inherit", textDecoration: "none", }}>
+                            <Button variant={item.done ? "outlined" : "contained"} color="primary" style={{ marginLeft: 30, marginTop: 5, }}>
+                                Configure
+                            </Button>
+                        </Link>
+                    </span>
+                    :
+                    null
+                }
+            </div>
+        )
+    }
+
+    const gettingStartedDrawer = true == true ? null :
+        <Drawer
+            anchor={"right"}
+            open={drawerOpen}
+            variant="persistent"
+            keepMounted={true}
+            PaperProps={{
+                style: {
+                    resize: "both",
+                    overflow: "auto",
+                    minWidth: drawerWidth,
+                    maxWidth: drawerWidth,
+                    backgroundColor: "#1F2023",
+                    color: "white",
+                    fontSize: 18,
+                    borderLeft: theme.palette.defaultBorder,
+                    marginTop: 100,
+                    borderRadius: "5px 0px 0px 0px",
+                },
+            }}
+        >
+            <div style={{ backgroundColor: "#f86a3e", display: "flex", }}>
+                <Typography variant="h6" style={{ flex: 5, marginTop: 20, marginLeft: 20, marginBottom: 20, }}>
+                    Getting Started
+                </Typography>
+                <Tooltip
+                    title="Close drawer"
+                    placement="top"
+                >
+                    <IconButton
+                        style={{ flex: 1, }}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setDrawerOpen(false)
+
+                            localStorage.setItem(sidebarKey, "closed");
+                        }}
+                    >
+                        <ArrowRightIcon style={{ color: "white" }} />
+                    </IconButton>
+                </Tooltip>
+            </div>
+            <div style={{ padding: 20, }}>
+                <Typography variant="body2">
+                    Setup progress: <b>{isNaN(percentDone) ? 0 : percentDone}%</b>
+                </Typography>
+
+                <LinearProgress color="primary" variant="determinate" value={percentDone} style={{ marginTop: 5, height: 7, borderRadius: theme.palette?.borderRadius, }} />
+
+                <Typography variant="body2" style={{ marginTop: 20, }}>
+                    Follow these steps to get you up and running!
+                </Typography>
+                <Divider style={{ marginTop: 20, }} />
+                <Typography variant="body2" style={{ color: "#f86a3e", marginTop: 20, cursor: "pointer", }} onClick={() => {
+                    setVideoViewOpen(true)
+                }}>
+                    <b>Watch 2-min introduction video</b>
+                </Typography>
+            </div>
+            <div style={{ borderTop: "1px solid rgba(255,255,255,0.3)", }}>
+                {gettingStartedItems.map((item, index) => {
+                    return (
+                        <GettingStartedItem key={index} item={item} index={index} />
+                    )
+                })}
+            </div>
+        </Drawer>
+
+    const videoView =
+        <Dialog
+            open={videoViewOpen}
+            onClose={() => {
+                setVideoViewOpen(false)
+            }}
+            PaperProps={{
+                style: {
+                    backgroundColor: theme.palette.surfaceColor,
+                    color: "white",
+                    minWidth: 560,
+                    minHeight: 415,
+                    textAlign: "center",
+                },
+            }}
+        >
+            <DialogTitle>
+                Welcome to Shuffle!
+            </DialogTitle>
+
+            <Tooltip
+                title="Close window"
+                placement="top"
+                style={{ zIndex: 10011 }}
+            >
+                <IconButton
+                    style={{ zIndex: 5000, position: "absolute", top: 10, right: 34 }}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        setVideoViewOpen(false)
+                    }}
+                >
+                    <CloseIcon style={{ color: "white" }} />
+                </IconButton>
+            </Tooltip>
+
+            <iframe
+                width="560"
+                height="315"
+                style={{ margin: "0px auto 0px auto", width: 560, height: 315, }}
+                src="https://www.youtube-nocookie.com/embed/rO7k9q3OgC0"
+                title="Introduction video"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+            >
+            </iframe>
+        </Dialog>
+
+    //isLoaded && isLoggedIn && workflowDone ? (
+    const loadedCheck =
+        workflowDone && isLoaded ? (
+            <div>
+                {/*
+				<ShepherdTour steps={newSteps} tourOptions={tourOptions}>
+					<TourButton />
+				</ShepherdTour>
+				*/}
+                <DropzoneWrapper onDrop={uploadFile} WorkflowView={WorkflowView} />
+                {deleteModal}
+                {exportVerifyModal}
+                {publishModal}
+                {aiAnnouncementModal}
+                {workflowDownloadModalOpen}
+                {syncListModal}
+
+                {/*!drawerOpen ? 
+			<div style={{ position: "fixed", top: 64, right: -5, backgroundColor: theme.palette.inputColor, borderRadius: theme.palette?.borderRadius, }}>
+          		<Tooltip title={`Getting Started`} placement="bottom">
+					<IconButton onClick={() => {
+						setDrawerOpen(true)
+						localStorage.setItem(sidebarKey, "open");
+					}}>
+						<ArrowLeftIcon /> 
+					</IconButton>
+				</Tooltip>
+			</div> : null*/}
+                {isMobile ? null : gettingStartedDrawer}
+                {videoView}
+
+                {modalOpen === true ?
+                    <EditWorkflow
+                        globalUrl={globalUrl}
+                        userdata={userdata}
+                        workflow={editingWorkflow}
+                        setWorkflow={setEditingWorkflow}
+                        modalOpen={modalOpen}
+                        setModalOpen={setModalOpen}
+                        usecases={usecases}
+                        setNewWorkflow={setNewWorkflow}
+                        appFramework={appFramework}
+                        isEditing={isEditing}
+
+                        workflows={workflows}
+                        apps={apps}
+                        setWorkflows={setWorkflows}
+                    />
+                    : null}
+                {/*<div style={{zIndex: 1, position: "fixed", bottom: 110, right: 110, display: "flex", }}>
+					<Typography variant="body1" color="textSecondary" style={{zIndex: 1, marginRight: 0, maxWidth: 150, }}>
+						Need assistance? Ask our support team (it's free!).
+                                            </Typography>
+					<img src="/images/Arrow.png" style={{width: 150, zIndex: 1,}} />
+				</div>*/}
+            </div>
+        ) : (
+            <div
+                style={{
+                    paddingTop: 250,
+                    width: 250,
+                    margin: "auto",
+                    textAlign: "center",
+                }}
+            >
+                <CircularProgress />
+                <Typography style={{marginTop: 5, }}>
+					Loading Workflows and Apps
+				</Typography>
+            </div>
+        );
+
+    const safariStyle = {
+        transform: 'scale(0.7)',
+        transformOrigin: 'top',
+        width: '100%',
+        height: '100%',
+    }
+
+    // Maybe use gridview or something, idk
+    return <div style={isSafari ? safariStyle : {zoom: 0.7, minHeight: "80vh",}}>{loadedCheck}</div>;
+    // return <div style={isSafari ? safariStyle : {minHeight: "80vh",}}>{loadedCheck}</div>;
+};
+
+
+
+export default Workflows2;
