@@ -1,0 +1,7 @@
+# pam_unix.so queda fuera a propósito: los usuarios de este laboratorio son
+# 100% LDAP/SSSD y su entrada "shadow" vía LDAP no trae los atributos que
+# pam_unix.so espera para el chequeo de expiración, lo que produce falsos
+# "User account has expired". pam_sss.so ya hace su propia validación de
+# cuenta contra el backend LDAP sin pasar por NSS shadow.
+account	[default=bad success=ok user_unknown=ignore]	pam_sss.so
+account	required					pam_permit.so

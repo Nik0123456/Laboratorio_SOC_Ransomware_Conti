@@ -1,0 +1,33 @@
+# Bootstrap del directorio para el laboratorio SOC.
+# Se carga automáticamente por la imagen osixia/openldap en el primer arranque
+# (monta este archivo en /container/service/slapd/assets/config/bootstrap/ldif/custom/).
+
+dn: ou=people,dc=empresa,dc=local
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=empresa,dc=local
+objectClass: organizationalUnit
+ou: groups
+
+dn: cn=testuser,ou=groups,dc=empresa,dc=local
+objectClass: posixGroup
+cn: testuser
+gidNumber: 5000
+
+# Usuario "víctima" de la demo: sus credenciales son las que el playbook
+# de Shuffle invalidará como acción de contención (LDAP disable).
+# objectClass posixAccount/shadowAccount es lo que permite que SSSD lo
+# resuelva como un usuario Linux real (uid/gid/home/shell) en victim-host.
+dn: uid=testuser,ou=people,dc=empresa,dc=local
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: testuser
+cn: Test User
+sn: User
+uidNumber: 5000
+gidNumber: 5000
+homeDirectory: /home/testuser
+loginShell: /bin/bash
+userPassword: testpass123
