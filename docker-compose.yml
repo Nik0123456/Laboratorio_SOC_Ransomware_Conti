@@ -1,0 +1,143 @@
+include:
+  # SOAR self-hosted, vendorizado como parte de la infraestructura del SOC.
+  # Ver infraestructura-soc/shuffle/README.md.
+  - infraestructura-soc/shuffle/vendor/docker-compose.yml
+
+networks:
+  soc-lab:
+    driver: bridge
+
+services:
+  # ════════════════════════════════════════════════════════════════════
+  # NODOS DE LA ORGANIZACIÓN (activos reales de la empresa hipotética)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ── Nodo: nodos-organizacion/ldap-server/ ──────────────────────────
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+    networks: [soc-lab]
+    environment:
+      LDAP_ORGANISATION: ${LDAP_ORGANISATION:-Logistica SAC}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-empresa.local}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-changeme}
+      # Evita que el entrypoint intente borrar el directorio de bootstrap al
+      # final del setup: como está montado como volumen, el rm falla
+      # ("Device or resource busy") y tumba el contenedor.
+      LDAP_REMOVE_CONFIG_AFTER_SETUP: "false"
+    volumes:
+      - ./nodos-organizacion/ldap-server/bootstrap:/container/service/slapd/assets/config/bootstrap/ldif/custom
+    healthcheck:
+      test: ["CMD", "ldapsearch", "-x", "-H", "ldap://localhost", "-b", "dc=empresa,dc=local", "-D", "cn=admin,dc=empresa,dc=local", "-w", "changeme"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    container_name: phpldapadmin
+    networks: [soc-lab]
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: openldap
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8080:80"
+    depends_on:
+      - openldap
+
+  # Wrapper HTTP para la acción de contención en LDAP: Shuffle solo puede
+  # invocar HTTP, no correr "ldapmodify" por CLI dentro de un contenedor,
+  # así que esta API (parte del mismo nodo LDAP) traduce POST /disable-user
+  # en una operación LDAP real contra openldap.
+  ldap-wrapper:
+    build: ./nodos-organizacion/ldap-server/wrapper
+    container_name: ldap-wrapper
+    networks: [soc-lab]
+    ports:
+      - "8001:8001"   # la llama el playbook de Shuffle
+    environment:
+      LDAP_URI: ldap://openldap:389
+      LDAP_ADMIN_DN: cn=admin,${LDAP_BASE_DN:-dc=empresa,dc=local}
+      LDAP_ADMIN_PASSWORD: ${LDAP_ADMIN_PASSWORD:-changeme}
+      LDAP_PEOPLE_OU: ou=people,${LDAP_BASE_DN:-dc=empresa,dc=local}
+    volumes:
+      - ./nodos-organizacion/ldap-server/wrapper/data:/data
+    depends_on:
+      openldap:
+        condition: service_healthy
+
+  # ── Nodo: nodos-organizacion/victim-host/ ──────────────────────────
+  # "Testigo" de la demo: nunca se ataca. Corre sshd/sssd (autenticación
+  # LDAP normal de cualquier servidor Linux de la empresa) y además el
+  # AGENTE de Wazuh (no el manager — el agente es lo que va instalado en
+  # cada servidor protegido). Sirve para demostrar el efecto real de las
+  # acciones de contención (LDAP disable, firewall block, aislamiento EDR).
+  victim-host:
+    build: ./nodos-organizacion/victim-host
+    container_name: victim-host
+    networks: [soc-lab]
+    cap_add:
+      - NET_ADMIN   # necesario para que isolate-host.sh (Wazuh AR) pueda usar iptables localmente
+    volumes:
+      - ./infraestructura-soc/wazuh-manager/active-response/isolate-host.sh:/opt/wazuh-ar/isolate-host.sh:ro
+    depends_on:
+      openldap:
+        condition: service_healthy
+      wazuh-manager:
+        condition: service_started
+
+  # ── Nodo: nodos-organizacion/firewall-perimetral/ ──────────────────
+  # network_mode: host es necesario para poder manipular la cadena
+  # DOCKER-USER del netfilter real del host (que es lo que efectivamente
+  # filtra el tráfico entre los contenedores de la red soc-lab). Por eso
+  # NO lleva "networks:" — al usar host, se sirve directo en el puerto
+  # 8000 del host, no dentro de la red bridge soc-lab.
+  firewall:
+    build: ./nodos-organizacion/firewall-perimetral
+    container_name: firewall
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./nodos-organizacion/firewall-perimetral/data:/data
+
+  # ════════════════════════════════════════════════════════════════════
+  # INFRAESTRUCTURA DEL SOC (seguridad centralizada — NO son activos de
+  # negocio de la empresa, y en particular NO son "por servidor": tanto
+  # Wazuh manager como Shuffle son un único nodo centralizado para todo
+  # el entorno, igual que lo sería un SIEM real).
+  # ════════════════════════════════════════════════════════════════════
+
+  # ── Nodo: infraestructura-soc/wazuh-manager/ ───────────────────────
+  # Solo el manager (sin indexer ni dashboard): se usa exclusivamente como
+  # actuador de Active Response, invocado on-demand por Shuffle vía su API.
+  # No se configura ninguna regla de correlación/detección. Es UN SOLO
+  # manager para todo el entorno — el agente vive en victim-host (y en
+  # cualquier otro servidor que se agregara), no acá.
+  wazuh-manager:
+    build: ./infraestructura-soc/wazuh-manager
+    container_name: wazuh-manager
+    networks: [soc-lab]
+    ports:
+      - "55000:55000"   # API — la llama el playbook de Shuffle
+
+  # Shuffle (SOAR) se levanta vía "include:" arriba, desde
+  # infraestructura-soc/shuffle/vendor/docker-compose.yml (clon oficial de
+  # github.com/Shuffle/Shuffle, con dos líneas propias agregadas para unir
+  # sus contenedores backend/orborus a la red soc-lab — ver ese archivo y
+  # infraestructura-soc/shuffle/README.md).
+
+  # ════════════════════════════════════════════════════════════════════
+  # UTILERÍA DE LABORATORIO (no existen en la organización real, solo
+  # sirven para poder probar/demostrar la demo)
+  # ════════════════════════════════════════════════════════════════════
+
+  # ── lab-props/c2-target/ ───────────────────────────────────────────
+  # Contenedor pasivo, no ataca ni es atacado. Solo simula el "destino
+  # malicioso" para poder probar el bloqueo de red antes/después.
+  c2-target:
+    image: nginx:alpine
+    container_name: c2-target
+    networks: [soc-lab]
+    volumes:
+      - ./lab-props/c2-target/index.html:/usr/share/nginx/html/index.html:ro
